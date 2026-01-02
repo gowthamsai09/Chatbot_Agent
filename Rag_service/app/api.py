@@ -21,6 +21,7 @@ class IngestRequest(BaseModel):
 
 class QueryRequest(BaseModel):
     query: str
+    session_id: str
     domain: Optional[str] = None
     top_k: Optional[int] = TOP_K
 
@@ -85,7 +86,7 @@ def query_rag(request: QueryRequest):
             for doc in results
         })
 
-        agent_result = run_agent(request.query)
+        agent_result = run_agent(query= request.query, session_id=request.session_id)
         answer = agent_result["answer"]
         coverage = agent_result.get("coverage")
         path_taken = agent_result.get("path_taken")

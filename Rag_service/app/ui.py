@@ -82,6 +82,10 @@ def ui():
 <pre id="sources"></pre>
 
 <script>
+// Session handling
+const sessionId = localStorage.getItem("session_id") || crypto.randomUUID();
+localStorage.setItem("session_id", sessionId);
+
 async function ingest() {
     console.log("Ingest clicked");
     const res = await fetch('/api/ingest/all', { method: 'POST' });
@@ -106,21 +110,28 @@ async function ask() {
     const res = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, domain })
+        // Session
+        body: JSON.stringify({
+            query: query,
+            session_id: sessionId,
+            domain: domain
+        })
     });
 
     const data = await res.json();
 
     document.getElementById("answer").innerText = data.answer;
+
     document.getElementById("introspection").innerHTML = `
-    <strong>Coverage:</strong> ${data.coverage ?? "N/A"}<br>
-    <strong>Path taken:</strong> ${data.path_taken ?? "N/A"}
+        <strong>Coverage:</strong> ${data.coverage ?? "N/A"}<br>
+        <strong>Path taken:</strong> ${data.path_taken ?? "N/A"}
     `;
 
     document.getElementById('sources').innerText =
         (data.sources || []).join('\\n');
 }
 </script>
+
 
 </body>
 </html>
