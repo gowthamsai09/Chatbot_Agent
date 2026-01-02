@@ -5,6 +5,9 @@ A **production-style Agentic Retrieval-Augmented Generation (RAG) system** built
 This project is designed to demonstrate **real AI engineering practices**.
 
 ---
+### Sample Outputs
+![1767338994500](image/Readme/1767338994500.png)
+![1767338981558](image/Readme/1767338981558.png)
 
 ## What This Project Demonstrates
 
