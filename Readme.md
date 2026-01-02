@@ -20,9 +20,6 @@ This system goes beyond basic RAG and showcases:
 - **Conversation memory** (multi-turn context)
 - Clean **FastAPI service architecture**
 - Simple UI for querying, ingestion, and observability
-
-This mirrors how **production AI backend systems** are built.
-
 ---
 
 ## High-Level Architecture
