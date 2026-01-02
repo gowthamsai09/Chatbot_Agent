@@ -6,8 +6,8 @@ This project is designed to demonstrate **real AI engineering practices**.
 
 ---
 ### Sample Outputs
-![1767338994500](image/Readme/1767338994500.png)
-![1767338981558](image/Readme/1767338981558.png)
+![1767339747982](image/Readme/1767339747982.png)
+![1767339760644](image/Readme/1767339760644.png)
 
 ## What This Project Demonstrates
 
@@ -26,7 +26,7 @@ This mirrors how **production AI backend systems** are built.
 ---
 
 ## High-Level Architecture
-![1767336040031](image/Readme/1767336040031.png)
+![1767339773627](image/Readme/1767339773627.png)
 
 
 ---
