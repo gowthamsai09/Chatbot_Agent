@@ -39,3 +39,4 @@ htmlcov/
 *.tmp
 *.bak
 *image*
+*.gitignore
