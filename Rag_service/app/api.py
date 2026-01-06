@@ -11,7 +11,6 @@ router = APIRouter()
 
 
 # Request / Response Models
-
 class IngestRequest(BaseModel):
     pdf_path: str
     book: str
@@ -33,12 +32,10 @@ class QueryResponse(BaseModel):
     path_taken: Optional[str] = None
 
 # API Endpoints
+
+# Ingest a single PDF into the vector store.
 @router.post("/ingest")
 def ingest(request: IngestRequest):
-    """
-    Ingest a single PDF into the vector store.
-    Safe to call multiple times (dedup enabled).
-    """
     try:
         return ingest_pdf(
             pdf_path=request.pdf_path,
@@ -49,24 +46,17 @@ def ingest(request: IngestRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
+# Automatically ingest all PDFs present in the PDF directory. Skips already indexed PDFs
 @router.post("/ingest/all")
 def ingest_all():
-    """
-    Automatically ingest all PDFs present in the PDF directory.
-    Skips already indexed PDFs.
-    """
     try:
         return ingest_all_pdfs()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
+# Query the RAG system with optional domain-aware retrieval.
 @router.post("/query", response_model=QueryResponse)
 def query_rag(request: QueryRequest):
-    """
-    Query the RAG system with optional domain-aware retrieval.
-    """
     try:
         results = retrieve(
             query=request.query,
@@ -101,14 +91,9 @@ def query_rag(request: QueryRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
+# Returns what data the system is trained on
 @router.get("/knowledge")
 def knowledge():
-    """
-    Returns what data the system is trained on:
-    books, domains, and sample chapters.
-    Used by UI for transparency.
-    """
     try:
         return get_knowledge_summary()
     except Exception as e:
@@ -117,7 +102,4 @@ def knowledge():
 
 @router.get("/health")
 def health():
-    """
-    Health check endpoint.
-    """
     return {"status": "ok"}

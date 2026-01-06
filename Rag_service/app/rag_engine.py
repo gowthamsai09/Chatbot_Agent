@@ -81,26 +81,18 @@ def clean_text(text: str) -> str:
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
+#  Create a stable hash for deduplication. Prevents repeated paragraphs from poisoning retrieval.
 def content_hash(text: str) -> str:
-    """
-    Create a stable hash for deduplication.
-    Prevents repeated paragraphs from poisoning retrieval.
-    """
-
     normalized = " ".join(text.lower().split())
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
+#  Full ingestion pipeline:PDF → chapters → chunks → dedup → vectorstore
 def ingest_pdf(
     pdf_path: str,
     book: str,
     author: str,
     domain: str
-):
-    """
-    Full ingestion pipeline:
-    PDF → chapters → chunks → dedup → vectorstore
-    """
-
+    ):
     vectorstore = get_vectorstore()
 
     documents = build_documents_from_pdf(
