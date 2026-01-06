@@ -54,9 +54,6 @@ Return VALID JSON only.
 
 
 def generate_answer(question: str, context: str) -> str:
-    """
-    Generates a grounded answer using DeepSeek.
-    """
     prompt = build_rag_prompt(question, context)
     response = hf_chat(prompt)
 

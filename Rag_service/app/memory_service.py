@@ -3,14 +3,10 @@ from collections import defaultdict
 
 # In-memory store (session-scoped)
 _memory_store: Dict[str, List[str]] = defaultdict(list)
+MAX_TURNS = 5  # keep last N turns only. It can hold upto 5 recent conversations
 
-MAX_TURNS = 5  # keep last N turns only
-
-
+# Returns conversation history as a single string.
 def get_memory(session_id: str) -> str:
-    """
-    Returns conversation history as a single string.
-    """
     history = _memory_store.get(session_id, [])
     return "\n".join(history)
 
