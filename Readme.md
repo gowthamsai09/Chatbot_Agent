@@ -4,6 +4,7 @@ A **production-style Agentic Retrieval-Augmented Generation (RAG) system** built
 
 This project is designed to demonstrate **real AI engineering practices**.
 
+![](https://komarev.com/ghpvc/?username=gowthamsai09)
 ---
 ### Sample Outputs
 ![1767339747982](image/Readme/1767339747982.png)
