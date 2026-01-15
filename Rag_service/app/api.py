@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
+from fastapi import UploadFile, File
 
 from .rag_engine import ingest_pdf, retrieve
 from .ingestion_service import ingest_all_pdfs, get_knowledge_summary
@@ -21,7 +22,9 @@ class IngestRequest(BaseModel):
 class QueryRequest(BaseModel):
     query: str
     session_id: str
+    hf_token: str
     domain: Optional[str] = None
+    document_id: Optional[str] = None
     top_k: Optional[int] = TOP_K
 
 
@@ -61,7 +64,8 @@ def query_rag(request: QueryRequest):
         results = retrieve(
             query=request.query,
             top_k=request.top_k,
-            domain=request.domain
+            domain=request.domain,
+            document_id=request.document_id
         )
 
         if not results:
@@ -76,7 +80,7 @@ def query_rag(request: QueryRequest):
             for doc in results
         })
 
-        agent_result = run_agent(query= request.query, session_id=request.session_id)
+        agent_result = run_agent(query= request.query, session_id=request.session_id,hf_token=request.hf_token)
         answer = agent_result["answer"]
         coverage = agent_result.get("coverage")
         path_taken = agent_result.get("path_taken")
@@ -96,6 +100,21 @@ def query_rag(request: QueryRequest):
 def knowledge():
     try:
         return get_knowledge_summary()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/upload")
+def upload_document(
+    file: UploadFile = File(...),
+    domain: str = "general"
+):
+    try:
+        from .ingestion_service import ingest_uploaded_document
+
+        return ingest_uploaded_document(
+            upload_file=file,
+            domain=domain
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

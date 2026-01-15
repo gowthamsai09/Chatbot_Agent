@@ -14,6 +14,7 @@ class AgentState(TypedDict):
     coverage: str
     path_taken: str
     memory: str
+    hf_token: str
 
 
 # Agent Nodes
@@ -50,7 +51,7 @@ def coverage_node(state: AgentState):
 
         Return ONLY one word.
         """
-    response = hf_chat(prompt).upper()
+    response = hf_chat(prompt, state["hf_token"]).upper()
 
     if "DIRECT" in response:
         coverage = "DIRECT"
@@ -90,7 +91,7 @@ def answer_node(state: AgentState):
         Return VALID JSON:
         {{"answer": "..."}}
         """
-    response = hf_chat(prompt)
+    response = hf_chat(prompt, state["hf_token"])
 
     try:
         parsed = json.loads(response)
@@ -140,7 +141,7 @@ def synthesize_node(state: AgentState):
         Return VALID JSON:
         {{"answer": "..."}}
         """
-    response = hf_chat(prompt)
+    response = hf_chat(prompt, state["hf_token"])
 
     try:
         parsed = json.loads(response)
@@ -195,7 +196,7 @@ graph.add_edge("synthesize", END)
 agent = graph.compile()
 
 # Public API Function
-def run_agent(query: str, session_id: str) -> dict:
+def run_agent(query: str, session_id: str, hf_token: str) -> dict:
     memory = get_memory(session_id)
 
     initial_state: AgentState = {
@@ -204,7 +205,8 @@ def run_agent(query: str, session_id: str) -> dict:
         "final_answer": "",
         "coverage": "",
         "path_taken": "",
-        "memory": memory
+        "memory": memory,
+        "hf_token": hf_token
     }
 
     result = agent.invoke(initial_state)
