@@ -1,10 +1,10 @@
+This Project will be updated frequently with new features
 # Agentic RAG System — DeepSeek + FastAPI
 
 A **production-style Agentic Retrieval-Augmented Generation (RAG) system** built with FastAPI, ChromaDB, HuggingFace DeepSeek LLM, and LangGraph.
 
 This project is designed to demonstrate **real AI engineering practices**.
 
-![](https://komarev.com/ghpvc/?username=gowthamsai09)
 ---
 ### Sample Outputs
 ![1767339747982](image/Readme/1767339747982.png)
@@ -127,10 +127,13 @@ Single-page FastAPI UI provides:
 **Key file**
 - `ui.py`
 
+![](https://komarev.com/ghpvc/?username=gowthamsai09)
+
 ## How to Run
 
 ### Install dependencies
 ```bash
+
 pip install -r requirements.txt
 
 export HUGGINGFACEHUB_API_TOKEN=your_token_here
