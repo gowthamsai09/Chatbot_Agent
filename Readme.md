@@ -1,7 +1,14 @@
 This Project will be updated frequently with new features
+
+Test Application here: - https://personalized-knowledge-assistant.onrender.com
+It take few minutes to load the application as server goes to sleep after inactivity. 
+
+Once server is live kindly provide hugging face token to proceed further.
+Creating Hugging Face Token: - https://huggingface.co/settings/tokens  (Create with read access)
+
 # Agentic RAG System — DeepSeek + FastAPI
 
-A **production-style Agentic Retrieval-Augmented Generation (RAG) system** built with FastAPI, ChromaDB, HuggingFace DeepSeek LLM, and LangGraph.
+A **production-style Agentic Retrieval-Augmented Generation (RAG) system** built with FastAPI, Qdrant(Cloud storage for vectors), HuggingFace DeepSeek LLM, and LangGraph.
 
 This project is designed to demonstrate **real AI engineering practices**.
 
