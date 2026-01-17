@@ -275,28 +275,40 @@ async function upload() {
     }
 }
 
+# async function handleUploadSuccess(data) {
+#     document.getElementById("uploadResult").innerText =
+#         JSON.stringify(data, null, 2);
+
+#     if (!data || !data.document) return;
+
+#     const res = await fetch("/api/knowledge");
+#     const knowledge = await res.json();
+
+#     uploadedDocumentId = null;
+
+#     for (const [id, name] of Object.entries(knowledge.documents || {})) {
+#         if (name === data.document) {
+#             uploadedDocumentId = id;
+#             break;
+#         }
+#     }
+
+#     if (uploadedDocumentId) {
+#         document.getElementById("postUploadAsk").classList.remove("hidden");
+#     }
+# }
+
 async function handleUploadSuccess(data) {
     document.getElementById("uploadResult").innerText =
         JSON.stringify(data, null, 2);
 
-    if (!data || !data.document) return;
-
-    const res = await fetch("/api/knowledge");
-    const knowledge = await res.json();
-
-    uploadedDocumentId = null;
-
-    for (const [id, name] of Object.entries(knowledge.documents || {})) {
-        if (name === data.document) {
-            uploadedDocumentId = id;
-            break;
-        }
-    }
-
-    if (uploadedDocumentId) {
+    // Use document_id directly from backend
+    if (data.document_id) {
+        uploadedDocumentId = data.document_id;
         document.getElementById("postUploadAsk").classList.remove("hidden");
     }
 }
+
 
 /* ---------------- ASK ON UPLOADED DOC ---------------- */
 
@@ -320,6 +332,21 @@ async function askOnUploadedDoc() {
 
 /* ---------------- ASK (GLOBAL / DOCUMENT) ---------------- */
 
+# async function loadDocuments() {
+#     const res = await fetch("/api/knowledge");
+#     const data = await res.json();
+
+#     const select = document.getElementById("documentList");
+#     select.innerHTML = "";
+
+#     for (const [id, name] of Object.entries(data.documents || {})) {
+#         const opt = document.createElement("option");
+#         opt.value = id;
+#         opt.innerText = name;
+#         select.appendChild(opt);
+#     }
+# }
+
 async function loadDocuments() {
     const res = await fetch("/api/knowledge");
     const data = await res.json();
@@ -327,13 +354,24 @@ async function loadDocuments() {
     const select = document.getElementById("documentList");
     select.innerHTML = "";
 
-    for (const [id, name] of Object.entries(data.documents || {})) {
+    const documents = data.documents || {};
+
+    if (Object.keys(documents).length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.innerText = "No documents indexed";
+        select.appendChild(opt);
+        return;
+    }
+
+    for (const [id, name] of Object.entries(documents)) {
         const opt = document.createElement("option");
         opt.value = id;
         opt.innerText = name;
         select.appendChild(opt);
     }
 }
+
 
 function onModeChange() {
     const mode = document.getElementById("modeSelector").value;
