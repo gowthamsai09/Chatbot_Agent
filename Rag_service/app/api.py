@@ -7,6 +7,7 @@ from .rag_engine import ingest_pdf, retrieve
 from .ingestion_service import ingest_all_pdfs, get_knowledge_summary
 from .settings import TOP_K
 from .agent_service import run_agent
+from .rag_engine import answer_query
 
 router = APIRouter()
 
@@ -62,40 +63,23 @@ def ingest_all():
         raise HTTPException(status_code=500, detail=str(e))
 
 # Query the RAG system with optional domain-aware retrieval.
+
 @router.post("/query", response_model=QueryResponse)
 def query_rag(request: QueryRequest):
     try:
-        results = retrieve(
+        result = answer_query(
             query=request.query,
-            top_k=request.top_k,
+            hf_token=request.hf_token,
             domain=request.domain,
-            document_id=request.document_id
+            document_id=request.document_id,
+            top_k=request.top_k
         )
 
-        if not results:
-            return QueryResponse(
-                answer="I do not have enough information to answer this question.",
-                sources=[]
-            )
-
-        # Collect unique sources
-        sources = list({
-            doc.metadata.get("source", "unknown")
-            for doc in results
-        })
-
-        agent_result = run_agent(query= request.query, session_id=request.session_id,hf_token=request.hf_token)
-        answer = agent_result["answer"]
-        coverage = agent_result.get("coverage")
-        path_taken = agent_result.get("path_taken")
         return QueryResponse(
-            answer=answer,
-            sources=sources,
-            coverage=coverage,
-            path_taken=path_taken
+            answer=result["answer"],
+            sources=result["sources"]
         )
 
-    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

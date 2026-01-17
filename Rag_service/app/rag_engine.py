@@ -7,6 +7,7 @@ from .vector_store import get_vectorstore
 from qdrant_client.models import Filter, FieldCondition, MatchValue
 from .ingestion_service import generate_document_id
 import hashlib
+from .llm_service import generate_answer
 
 CHAPTER_REGEX = re.compile(
     r"(chapter\s+\d+[:.\s]+.*)|(^\d+\s+.*)",
@@ -164,3 +165,46 @@ def retrieve(query: str, top_k: int = 5, domain: str = None, document_id: str = 
         k=top_k,
         filter=search_filter
     )
+
+def answer_query(
+    query: str,
+    hf_token: str,
+    domain: str = None,
+    document_id: str = None,
+    top_k: int = 5,
+):
+    # Step 1: retrieve relevant chunks
+    docs = retrieve(
+        query=query,
+        top_k=top_k,
+        domain=domain,
+        document_id=document_id,
+    )
+
+    if not docs:
+        return {
+            "answer": "I do not have enough information.",
+            "sources": []
+        }
+
+    # Step 2: build context
+    context = "\n\n".join(doc.page_content for doc in docs)
+
+    # Step 3: call LLM
+    answer = generate_answer(
+        question=query,
+        context=context,
+        hf_token=hf_token
+    )
+
+    # Step 4: return structured response
+    return {
+        "answer": answer,
+        "sources": [
+            {
+                "document": doc.metadata.get("document_name"),
+                "chapter": doc.metadata.get("chapter"),
+            }
+            for doc in docs
+        ]
+    }
