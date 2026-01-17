@@ -9,7 +9,7 @@ def ui():
 <!DOCTYPE html>
 <html>
 <head>
-    <title>RAG Knowledge Assistant</title>
+    <title>Personalized Knowledge Assistant</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -41,6 +41,12 @@ def ui():
         hr {
             margin: 25px 0;
         }
+        select,
+        #uploadUrl {
+            height: 36px;
+            box-sizing: border-box;
+        }
+
     </style>
 </head>
 
@@ -56,9 +62,9 @@ def ui():
 
 <!-- ================= HOME ================= -->
 <div id="homeView" class="hidden">
-    <h1>RAG Knowledge Assistant</h1>
+    <h1>Personalized Knowledge Assistant</h1>
 
-    <button class="nav-btn" onclick="showUploadView()">Upload File</button>
+    <button class="nav-btn" onclick="showUploadView()">Upload File / URL</button>
     <button class="nav-btn" onclick="showAskView()">Ask Questions on Indexed Data</button>
     <button class="nav-btn" onclick="deleteToken()">Delete Token</button>
 </div>
@@ -67,7 +73,18 @@ def ui():
 <div id="uploadView" class="hidden">
     <h2>Upload Document</h2>
 
+    <select id="uploadType" onchange="onUploadTypeChange()">
+        <option value="file">Upload File</option>
+        <option value="url">Upload URL</option>
+    </select>
+
     <input type="file" id="uploadFile" />
+    <input
+        type="text"
+        id="uploadUrl"
+        class="hidden"
+        placeholder="https://example.com/page"
+    />
 
     <select id="uploadDomain">
         <option value="general">General</option>
@@ -177,6 +194,7 @@ function showUploadView() {
     hideAll();
     resetUploadState();
     document.getElementById("uploadView").classList.remove("hidden");
+    onUploadTypeChange();
 }
 
 function showAskView() {
@@ -203,35 +221,72 @@ function resetUploadState() {
     uploadedDocumentId = null;
     document.getElementById("uploadResult").innerText = "";
     document.getElementById("postUploadAsk").classList.add("hidden");
+    document.getElementById("uploadFile").value = "";
+    document.getElementById("uploadUrl").value = "";
+    document.getElementById("docQuery").value = "";
+    document.getElementById("docAnswer").innerText = "";
 }
 
 async function upload() {
-    const fileInput = document.getElementById("uploadFile");
-    if (!fileInput.files.length) {
-        alert("Select a file");
-        return;
+    const type = document.getElementById("uploadType").value;
+    const domain = document.getElementById("uploadDomain").value;
+
+    if (type === "file") {
+        const fileInput = document.getElementById("uploadFile");
+        if (!fileInput.files.length) {
+            alert("Select a file");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+        formData.append("domain", domain);
+
+        const res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await res.json();
+        handleUploadSuccess(data);
+
+    } else {
+        const url = document.getElementById("uploadUrl").value.trim();
+        if (!url) {
+            alert("Enter a URL");
+            return;
+        }
+
+        const res = await fetch("/api/upload/url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url, domain })
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            document.getElementById("uploadResult").innerText =
+                err.detail || "Failed to ingest URL";
+            return;
+        }
+
+        const data = await res.json();
+        handleUploadSuccess(data);
     }
+}
 
-    const formData = new FormData();
-    formData.append("file", fileInput.files[0]);
-    formData.append("domain",
-        document.getElementById("uploadDomain").value
-    );
-
-    const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData
-    });
-
-    const data = await res.json();
+async function handleUploadSuccess(data) {
     document.getElementById("uploadResult").innerText =
         JSON.stringify(data, null, 2);
 
-    // Reload documents to find document_id
-    const kRes = await fetch("/api/knowledge");
-    const kData = await kRes.json();
+    if (!data || !data.document) return;
 
-    for (const [id, name] of Object.entries(kData.documents || {})) {
+    const res = await fetch("/api/knowledge");
+    const knowledge = await res.json();
+
+    uploadedDocumentId = null;
+
+    for (const [id, name] of Object.entries(knowledge.documents || {})) {
         if (name === data.document) {
             uploadedDocumentId = id;
             break;
@@ -252,7 +307,7 @@ async function askOnUploadedDoc() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-            query: query,
+            query,
             session_id: sessionId,
             hf_token: getToken(),
             document_id: uploadedDocumentId
@@ -302,8 +357,7 @@ async function ask() {
     };
 
     if (mode === "document") {
-        payload.document_id =
-            document.getElementById("documentList").value;
+        payload.document_id = document.getElementById("documentList").value;
     }
 
     const res = await fetch("/api/query", {
@@ -323,6 +377,12 @@ async function ask() {
         document.getElementById("sources").innerText =
             (data.sources || []).join("\\n");
     }
+}
+
+function onUploadTypeChange() {
+    const type = document.getElementById("uploadType").value;
+    document.getElementById("uploadFile").classList.toggle("hidden", type === "url");
+    document.getElementById("uploadUrl").classList.toggle("hidden", type === "file");
 }
 </script>
 

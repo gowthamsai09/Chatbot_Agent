@@ -6,6 +6,8 @@ import hashlib
 
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+import requests
+from bs4 import BeautifulSoup
 
 from .settings import CHUNK_SIZE, CHUNK_OVERLAP, PDF_DIR
 from .vector_store import get_vectorstore
@@ -20,7 +22,6 @@ def generate_document_id(seed: str) -> str:
 
 
 # Disk PDF ingestion helpers
-
 def get_indexed_pdf_sources() -> Set[str]:
     vectorstore = get_vectorstore()
     indexed_sources = set()
@@ -74,8 +75,7 @@ def ingest_all_pdfs(
 
 
 
-# Knowledge Summary (Phase 3 FIX)
-
+# Knowledge Summary (FIX)
 def get_knowledge_summary() -> Dict[str, List[str]]:
     vectorstore = get_vectorstore()
 
@@ -112,7 +112,6 @@ def get_knowledge_summary() -> Dict[str, List[str]]:
 
 
 # TXT Upload Ingestion
-
 def ingest_text_file(path: str, name: str, domain: str):
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         text = f.read()
@@ -240,3 +239,90 @@ def ingest_uploaded_document(upload_file, domain: str):
 
     finally:
         upload_file.file.close()
+
+def ingest_url(url: str, domain: str):
+    """Ingests a single web page URL as ONE document to many chunks."""
+
+    # 1. Validate URL
+    if not url.startswith("http://") and not url.startswith("https://"):
+        return {"status": "error", "message": "Invalid URL"}
+
+    # 2. Fetch page
+    try:
+        response = requests.get(url, timeout=10, headers={
+            "User-Agent": "Mozilla/5.0"
+        })
+    except Exception as e:
+        return {"status": "error", "message": f"Request failed: {e}"}
+
+    if response.status_code != 200:
+        return {
+            "status": "error",
+            "message": f"Failed to fetch URL (status {response.status_code})"
+        }
+
+    # 3. Parse HTML
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Remove scripts & styles
+    for tag in soup(["script", "style", "noscript"]):
+        tag.decompose()
+
+    # 4. Extract title
+    title = soup.title.string.strip() if soup.title and soup.title.string else url
+
+    # 5. Extract main content
+    main_content = None
+    if soup.main:
+        main_content = soup.main
+    elif soup.article:
+        main_content = soup.article
+    else:
+        main_content = soup.body
+
+    if not main_content:
+        return {"status": "error", "message": "No readable content found"}
+
+    text = main_content.get_text(separator="\n", strip=True)
+
+    if not text or len(text) < 100:
+        return {"status": "error", "message": "Page content too small to index"}
+
+    # 6. Chunk text
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP
+    )
+
+    chunks = splitter.split_text(text)
+    docs = []
+
+    document_id = generate_document_id(url)
+
+    for chunk in chunks:
+        hash_value = hashlib.sha256(chunk.encode()).hexdigest()
+
+        docs.append(
+            Document(
+                page_content=chunk,
+                metadata={
+                    "document_id": document_id,
+                    "document_name": title,
+                    "domain": domain,
+                    "source": "url",
+                    "chunk_id": hash_value,
+                    "content_hash": hash_value
+                }
+            )
+        )
+
+    # 7. Store in vector DB
+    vectorstore = get_vectorstore()
+    vectorstore.add_documents(docs)
+
+    return {
+        "status": "ingested",
+        "document": title,
+        "document_id": document_id,
+        "chunks_added": len(docs)
+    }

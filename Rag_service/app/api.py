@@ -34,6 +34,10 @@ class QueryResponse(BaseModel):
     coverage: Optional[str] = None
     path_taken: Optional[str] = None
 
+class UrlUploadRequest(BaseModel):
+    url: str
+    domain: str = "general"
+
 # API Endpoints
 
 # Ingest a single PDF into the vector store.
@@ -118,6 +122,19 @@ def upload_document(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/upload/url")
+def upload_url(request: UrlUploadRequest):
+    from .ingestion_service import ingest_url
+
+    result = ingest_url(
+        url=request.url,
+        domain=request.domain
+    )
+
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result["message"])
+
+    return result
 
 @router.get("/health")
 def health():
