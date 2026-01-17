@@ -3,10 +3,9 @@ from pydantic import BaseModel
 from typing import List, Optional
 from fastapi import UploadFile, File
 
-from .rag_engine import ingest_pdf, retrieve
+from .rag_engine import ingest_pdf
 from .ingestion_service import ingest_all_pdfs, get_knowledge_summary
 from .settings import TOP_K
-from .agent_service import run_agent
 from .rag_engine import answer_query
 
 router = APIRouter()
@@ -63,7 +62,6 @@ def ingest_all():
         raise HTTPException(status_code=500, detail=str(e))
 
 # Query the RAG system with optional domain-aware retrieval.
-
 @router.post("/query", response_model=QueryResponse)
 def query_rag(request: QueryRequest):
     try:
@@ -72,16 +70,22 @@ def query_rag(request: QueryRequest):
             hf_token=request.hf_token,
             domain=request.domain,
             document_id=request.document_id,
-            top_k=request.top_k
+            top_k=request.top_k,
         )
 
         return QueryResponse(
             answer=result["answer"],
-            sources=result["sources"]
+            sources=[
+                f'{src.get("document")} - {src.get("chapter")}'
+                for src in result.get("sources", [])
+            ],
+            coverage="vectorstore",
+            path_taken="retrieval → hf_llm"
         )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 # Returns what data the system is trained on
 @router.get("/knowledge")
