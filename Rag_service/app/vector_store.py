@@ -1,8 +1,7 @@
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
+from qdrant_client.models import PayloadSchemaType
 from langchain_huggingface import HuggingFaceEndpointEmbeddings
-from qdrant_client import QdrantClient
-from .settings import QDRANT_URL, QDRANT_API_KEY
 
 from .settings import (
     QDRANT_URL,
@@ -14,6 +13,7 @@ from .settings import (
 
 _vectorstore = None
 _embeddings = None
+_qdrant_client = None
 
 
 def get_embeddings():
@@ -21,22 +21,59 @@ def get_embeddings():
 
     if _embeddings is None:
         _embeddings = HuggingFaceEndpointEmbeddings(
-        huggingfacehub_api_token=HF_INFERENCE_API_KEY,
-        model=HF_EMBEDDING_MODEL
-    )
-
+            huggingfacehub_api_token=HF_INFERENCE_API_KEY,
+            model=HF_EMBEDDING_MODEL
+        )
 
     return _embeddings
+
+
+def get_qdrant_client():
+    global _qdrant_client
+
+    if _qdrant_client is None:
+        _qdrant_client = QdrantClient(
+            url=QDRANT_URL,
+            api_key=QDRANT_API_KEY,
+            timeout=30
+        )
+
+    return _qdrant_client
+
+
+def _ensure_payload_indexes(client: QdrantClient):
+    """
+    Ensure required payload indexes exist.
+    Safe to call multiple times.
+    """
+
+    try:
+        client.create_payload_index(
+            collection_name=COLLECTION_NAME,
+            field_name="metadata.document_id",
+            field_schema=PayloadSchemaType.KEYWORD
+        )
+    except Exception:
+        pass  # index may already exist
+
+    try:
+        client.create_payload_index(
+            collection_name=COLLECTION_NAME,
+            field_name="metadata.domain",
+            field_schema=PayloadSchemaType.KEYWORD
+        )
+    except Exception:
+        pass
 
 
 def get_vectorstore():
     global _vectorstore
 
     if _vectorstore is None:
-        client = QdrantClient(
-            url=QDRANT_URL,
-            api_key=QDRANT_API_KEY
-        )
+        client = get_qdrant_client()
+
+        # 🔑 THIS IS THE CRITICAL FIX
+        _ensure_payload_indexes(client)
 
         _vectorstore = QdrantVectorStore(
             client=client,
@@ -45,15 +82,3 @@ def get_vectorstore():
         )
 
     return _vectorstore
-
-_qdrant_client = None
-
-def get_qdrant_client():
-    global _qdrant_client
-    if _qdrant_client is None:
-        _qdrant_client = QdrantClient(
-            url=QDRANT_URL,
-            api_key=QDRANT_API_KEY,
-            timeout=30
-        )
-    return _qdrant_client
