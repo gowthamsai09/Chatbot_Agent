@@ -19,3 +19,6 @@ sentence-transformers
 requests
 beautifulsoup4
 python-multipart
+
+langchain-qdrant
+qdrant-client

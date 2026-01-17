@@ -1,31 +1,44 @@
-from langchain_chroma import Chroma
-from pathlib import Path
-from langchain_huggingface import HuggingFaceEmbeddings
-from .settings import VECTORSTORE_DIR, COLLECTION_NAME
+from langchain_qdrant import QdrantVectorStore
+from qdrant_client import QdrantClient
+from langchain.embeddings import HuggingFaceInferenceAPIEmbeddings
 
-_embedding = HuggingFaceEmbeddings(
-    model_name="all-MiniLM-L6-v2"
+from .settings import (
+    QDRANT_URL,
+    QDRANT_API_KEY,
+    COLLECTION_NAME,
+    HF_INFERENCE_API_KEY,
+    HF_EMBEDDING_MODEL
 )
 
 _vectorstore = None
+_embeddings = None
 
 
 def get_embeddings():
-    return _embedding
+    global _embeddings
+
+    if _embeddings is None:
+        _embeddings = HuggingFaceInferenceAPIEmbeddings(
+            api_key=HF_INFERENCE_API_KEY,
+            model_name=HF_EMBEDDING_MODEL
+        )
+
+    return _embeddings
 
 
 def get_vectorstore():
     global _vectorstore
 
-    VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
-
     if _vectorstore is None:
-        _vectorstore = Chroma(
-            persist_directory=str(VECTORSTORE_DIR),
+        client = QdrantClient(
+            url=QDRANT_URL,
+            api_key=QDRANT_API_KEY
+        )
+
+        _vectorstore = QdrantVectorStore(
+            client=client,
             collection_name=COLLECTION_NAME,
-            embedding_function=get_embeddings()
+            embedding=get_embeddings()
         )
 
     return _vectorstore
-
-get_vectorstore()
