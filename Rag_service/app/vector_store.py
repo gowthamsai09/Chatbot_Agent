@@ -19,9 +19,10 @@ def get_embeddings():
 
     if _embeddings is None:
         _embeddings = HuggingFaceEndpointEmbeddings(
-            api_key=HF_INFERENCE_API_KEY,
-            model_name=HF_EMBEDDING_MODEL
-        )
+        huggingfacehub_api_token=HF_INFERENCE_API_KEY,
+        model=HF_EMBEDDING_MODEL
+    )
+
 
     return _embeddings
 
