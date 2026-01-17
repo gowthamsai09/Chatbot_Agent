@@ -12,6 +12,11 @@ from bs4 import BeautifulSoup
 from .settings import CHUNK_SIZE, CHUNK_OVERLAP, PDF_DIR
 from .vector_store import get_vectorstore
 
+from collections import defaultdict
+from .vector_store import get_qdrant_client
+from .settings import COLLECTION_NAME
+
+
 
 
 # Document ID Utility (Phase 3)
@@ -77,35 +82,37 @@ def ingest_all_pdfs(
 
 # Knowledge Summary - For Qdrant
 def get_knowledge_summary():
-    vectorstore = get_vectorstore()
+    client = get_qdrant_client()
 
     documents = {}
     domains = set()
 
-    try:
-        data = vectorstore.get(include=["metadatas"])
+    # Scroll through all points
+    offset = None
+    while True:
+        points, offset = client.scroll(
+            collection_name=COLLECTION_NAME,
+            limit=100,
+            with_payload=True,
+            offset=offset
+        )
 
-        # Qdrant returns nested metadata lists
-        for meta_list in data.get("metadatas", []):
-            if not meta_list:
-                continue
+        for point in points:
+            payload = point.payload or {}
+            metadata = payload.get("metadata", {})
 
-            for meta in meta_list:
-                if not meta:
-                    continue
+            doc_id = metadata.get("document_id")
+            doc_name = metadata.get("document_name")
+            domain = metadata.get("domain")
 
-                doc_id = meta.get("document_id")
-                doc_name = meta.get("document_name")
-                domain = meta.get("domain")
+            if doc_id and doc_name:
+                documents[doc_id] = doc_name
 
-                if doc_id and doc_name:
-                    documents[doc_id] = doc_name
+            if domain:
+                domains.add(domain)
 
-                if domain:
-                    domains.add(domain)
-
-    except Exception:
-        pass
+        if offset is None:
+            break
 
     return {
         "documents": documents,

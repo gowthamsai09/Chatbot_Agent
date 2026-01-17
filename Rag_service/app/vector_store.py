@@ -1,6 +1,8 @@
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from langchain_huggingface import HuggingFaceEndpointEmbeddings
+from qdrant_client import QdrantClient
+from .settings import QDRANT_URL, QDRANT_API_KEY
 
 from .settings import (
     QDRANT_URL,
@@ -43,3 +45,15 @@ def get_vectorstore():
         )
 
     return _vectorstore
+
+_qdrant_client = None
+
+def get_qdrant_client():
+    global _qdrant_client
+    if _qdrant_client is None:
+        _qdrant_client = QdrantClient(
+            url=QDRANT_URL,
+            api_key=QDRANT_API_KEY,
+            timeout=30
+        )
+    return _qdrant_client

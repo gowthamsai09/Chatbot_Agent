@@ -4,6 +4,7 @@ from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from .settings import CHUNK_SIZE, CHUNK_OVERLAP
 from .vector_store import get_vectorstore
+from qdrant_client.models import Filter, FieldCondition, MatchValue
 from .ingestion_service import generate_document_id
 import hashlib
 
@@ -73,7 +74,7 @@ def build_documents_from_pdf(
                         "author": author,
                         "chapter": chapter_title,
                         "domain": domain,
-                        "source": "upload" if "tmp" in pdf_path else pdf_path,
+                        "source": "upload",
                         "chunk_id": hash_value,
                         "content_hash": hash_value
                     }
@@ -136,17 +137,30 @@ def ingest_pdf(
         "chunks_added": len(new_docs)
     }
 
-def retrieve(query: str,top_k: int = 5,domain: str = None,document_id: str = None):
+def retrieve(query: str, top_k: int = 5, domain: str = None, document_id: str = None):
     vectorstore = get_vectorstore()
-    filters = {}
+    conditions = []
 
     if domain:
-        filters["domain"] = domain
+        conditions.append(
+            FieldCondition(
+                key="metadata.domain",
+                match=MatchValue(value=domain)
+            )
+        )
 
     if document_id:
-        filters["document_id"] = document_id
+        conditions.append(
+            FieldCondition(
+                key="metadata.document_id",
+                match=MatchValue(value=document_id)
+            )
+        )
 
-    if filters:
-        return vectorstore.similarity_search(query=query,k=top_k,filter=filters)
+    search_filter = Filter(must=conditions) if conditions else None
 
-    return vectorstore.similarity_search(query=query, k=top_k)
+    return vectorstore.similarity_search(
+        query=query,
+        k=top_k,
+        filter=search_filter
+    )
