@@ -112,15 +112,20 @@ def upload_document(
     file: UploadFile = File(...),
     domain: str = "general"
 ):
-    try:
-        from .ingestion_service import ingest_uploaded_document
+    from .ingestion_service import ingest_uploaded_document
 
-        return ingest_uploaded_document(
+    try:
+        result = ingest_uploaded_document(
             upload_file=file,
             domain=domain
         )
+        return result
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 
 @router.post("/upload/url")
 def upload_url(request: UrlUploadRequest):
