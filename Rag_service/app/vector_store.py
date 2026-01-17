@@ -1,6 +1,6 @@
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
-from langchain_huggingface import HuggingFaceInferenceAPIEmbeddings
+from langchain_huggingface import HuggingFaceEndpointEmbeddings
 
 from .settings import (
     QDRANT_URL,
@@ -18,7 +18,7 @@ def get_embeddings():
     global _embeddings
 
     if _embeddings is None:
-        _embeddings = HuggingFaceInferenceAPIEmbeddings(
+        _embeddings = HuggingFaceEndpointEmbeddings(
             api_key=HF_INFERENCE_API_KEY,
             model_name=HF_EMBEDDING_MODEL
         )
