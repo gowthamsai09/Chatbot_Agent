@@ -5,7 +5,7 @@ langchain
 langchain-core
 langchain-community
 langchain-text-splitters
-langchain-chroma
+
 chromadb
 
 huggingface-hub
