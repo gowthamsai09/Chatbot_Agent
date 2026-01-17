@@ -119,7 +119,12 @@ def upload_document(
             upload_file=file,
             domain=domain
         )
-        return result
+        return {
+            "status": result.get("status"),
+            "document": result.get("document"),
+            "document_id": result.get("document_id"),
+            "chunks_added": result.get("details", {}).get("chunks_added", 0)
+        }
 
     except Exception as e:
         return {

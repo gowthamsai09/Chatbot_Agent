@@ -75,39 +75,43 @@ def ingest_all_pdfs(
 
 
 
-# Knowledge Summary (FIX)
-def get_knowledge_summary() -> Dict[str, List[str]]:
+# Knowledge Summary - For Qdrant
+def get_knowledge_summary():
     vectorstore = get_vectorstore()
 
     documents = {}
     domains = set()
-    chapters = set()
 
     try:
         data = vectorstore.get(include=["metadatas"])
-        for meta in data.get("metadatas", []):
-            if not meta:
+
+        # Qdrant returns nested metadata lists
+        for meta_list in data.get("metadatas", []):
+            if not meta_list:
                 continue
 
-            doc_id = meta.get("document_id")
-            doc_name = meta.get("document_name")
+            for meta in meta_list:
+                if not meta:
+                    continue
 
-            if doc_id and doc_name:
-                documents[doc_id] = doc_name
+                doc_id = meta.get("document_id")
+                doc_name = meta.get("document_name")
+                domain = meta.get("domain")
 
-            domains.add(meta.get("domain", "unknown"))
+                if doc_id and doc_name:
+                    documents[doc_id] = doc_name
 
-            if "chapter" in meta:
-                chapters.add(meta.get("chapter"))
+                if domain:
+                    domains.add(domain)
 
     except Exception:
         pass
 
     return {
         "documents": documents,
-        "domains": sorted(domains),
-        "sample_chapters": sorted(list(chapters))[:10]
+        "domains": sorted(domains)
     }
+
 
 
 
