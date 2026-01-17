@@ -275,28 +275,6 @@ async function upload() {
     }
 }
 
-# async function handleUploadSuccess(data) {
-#     document.getElementById("uploadResult").innerText =
-#         JSON.stringify(data, null, 2);
-
-#     if (!data || !data.document) return;
-
-#     const res = await fetch("/api/knowledge");
-#     const knowledge = await res.json();
-
-#     uploadedDocumentId = null;
-
-#     for (const [id, name] of Object.entries(knowledge.documents || {})) {
-#         if (name === data.document) {
-#             uploadedDocumentId = id;
-#             break;
-#         }
-#     }
-
-#     if (uploadedDocumentId) {
-#         document.getElementById("postUploadAsk").classList.remove("hidden");
-#     }
-# }
 
 async function handleUploadSuccess(data) {
     document.getElementById("uploadResult").innerText =
@@ -332,20 +310,6 @@ async function askOnUploadedDoc() {
 
 /* ---------------- ASK (GLOBAL / DOCUMENT) ---------------- */
 
-# async function loadDocuments() {
-#     const res = await fetch("/api/knowledge");
-#     const data = await res.json();
-
-#     const select = document.getElementById("documentList");
-#     select.innerHTML = "";
-
-#     for (const [id, name] of Object.entries(data.documents || {})) {
-#         const opt = document.createElement("option");
-#         opt.value = id;
-#         opt.innerText = name;
-#         select.appendChild(opt);
-#     }
-# }
 
 async function loadDocuments() {
     const res = await fetch("/api/knowledge");
