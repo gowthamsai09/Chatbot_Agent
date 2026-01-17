@@ -4,6 +4,7 @@ from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from .settings import CHUNK_SIZE, CHUNK_OVERLAP
 from .vector_store import get_vectorstore
+from .ingestion_service import generate_document_id
 import hashlib
 
 CHAPTER_REGEX = re.compile(
@@ -61,15 +62,19 @@ def build_documents_from_pdf(
         chunks = splitter.split_text(cleaned_text)
         for chunk in chunks:
             hash_value = content_hash(chunk)
+            doc_id = generate_document_id(book)
             documents.append(
                 Document(
                     page_content=chunk,
                     metadata={
+                        "document_id": doc_id,
+                        "document_name": book,
                         "book": book,
                         "author": author,
                         "chapter": chapter_title,
                         "domain": domain,
-                        "source": pdf_path,
+                        "source": "upload" if "tmp" in pdf_path else pdf_path,
+                        "chunk_id": hash_value,
                         "content_hash": hash_value
                     }
                 )
@@ -81,26 +86,18 @@ def clean_text(text: str) -> str:
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
+#  Create a stable hash for deduplication. Prevents repeated paragraphs from poisoning retrieval.
 def content_hash(text: str) -> str:
-    """
-    Create a stable hash for deduplication.
-    Prevents repeated paragraphs from poisoning retrieval.
-    """
-
     normalized = " ".join(text.lower().split())
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
+#  Full ingestion pipeline:PDF → chapters → chunks → dedup → vectorstore
 def ingest_pdf(
     pdf_path: str,
     book: str,
     author: str,
     domain: str
-):
-    """
-    Full ingestion pipeline:
-    PDF → chapters → chunks → dedup → vectorstore
-    """
-
+    ):
     vectorstore = get_vectorstore()
 
     documents = build_documents_from_pdf(
@@ -139,17 +136,17 @@ def ingest_pdf(
         "chunks_added": len(new_docs)
     }
 
-def retrieve(query: str, top_k: int = 5, domain: str = None):
+def retrieve(query: str,top_k: int = 5,domain: str = None,document_id: str = None):
     vectorstore = get_vectorstore()
+    filters = {}
 
     if domain:
-        return vectorstore.similarity_search(
-            query=query,
-            k=top_k,
-            filter={"domain": domain}
-        )
+        filters["domain"] = domain
 
-    return vectorstore.similarity_search(
-        query=query,
-        k=top_k
-    )
+    if document_id:
+        filters["document_id"] = document_id
+
+    if filters:
+        return vectorstore.similarity_search(query=query,k=top_k,filter=filters)
+
+    return vectorstore.similarity_search(query=query, k=top_k)

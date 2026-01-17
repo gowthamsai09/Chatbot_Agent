@@ -1,8 +1,8 @@
 from typing import TypedDict, List
 import json
-
 from langgraph.graph import StateGraph, END
 
+from .memory_service import get_memory, update_memory
 from .rag_engine import retrieve
 from .llm_service import hf_chat
 
@@ -13,18 +13,16 @@ class AgentState(TypedDict):
     final_answer: str
     coverage: str
     path_taken: str
+    memory: str
+    hf_token: str
 
 
 # Agent Nodes
-
 def retrieve_node(state: AgentState):
-    results = retrieve(query=state["user_query"], top_k=3)
-
+    query = state["user_query"]
+    results = retrieve(query=query, top_k=3)
     texts = [doc.page_content for doc in results]
-
-    return {
-        "retrieved_docs": texts
-    }
+    return {"retrieved_docs": texts}
 
 
 def coverage_node(state: AgentState):
@@ -33,21 +31,27 @@ def coverage_node(state: AgentState):
     prompt = f"""
         You are evaluating information coverage.
 
+        Conversation history:
+        {state.get("memory", "")}
+
         User question:
         {state['user_query']}
 
         Context:
         {context}
 
-        Decide ONE label:
-        - DIRECT  (clearly answers the question)
-        - PARTIAL (contains related information but not a full answer)
-        - NONE    (completely unrelated)
+        Choose ONE:
+        - DIRECT  → context clearly answers the question
+        - PARTIAL → context is relevant but incomplete (definitions, components, background)
+        - NONE    → context is unrelated
 
-        Be generous. If there is any relevant information, choose PARTIAL.
+        If the question is comparative ("better than", "difference between"),
+        and the context explains only one side,
+        choose PARTIAL.
+
         Return ONLY one word.
         """
-    response = hf_chat(prompt).upper()
+    response = hf_chat(prompt, state["hf_token"]).upper()
 
     if "DIRECT" in response:
         coverage = "DIRECT"
@@ -63,27 +67,31 @@ def answer_node(state: AgentState):
     context = "\n\n".join(state.get("retrieved_docs", []))
 
     prompt = f"""
-        You are answering a question using ONLY the provided context.
-        You MAY:
-        - expand acronyms
-        - rephrase concepts
-        - combine multiple parts of the context
+        You are answering a follow-up question in a conversation.
+        Use the conversation history ONLY to understand what the user is referring to.
+        DO NOT quote or summarize the conversation history.
+        DO NOT treat it as factual evidence.
 
-        You MUST NOT:
-        - use external knowledge
-        - invent facts not present in the context
+        Conversation history (for reference only):
+        {state.get("memory", "")}
+        Use ONLY the retrieved context below as evidence.
+
+        Use the conversation history to understand what the user is referring to.
+        If the current question is vague (e.g. "that", "it", "this"),
+        interpret it as a follow-up to the most recent topic.
+
+        Use ONLY the retrieved context to answer.
 
         Context:
         {context}
 
-        Question:
+        Current question:
         {state['user_query']}
 
-        Return VALID JSON ONLY.
-
+        Return VALID JSON:
         {{"answer": "..."}}
         """
-    response = hf_chat(prompt)
+    response = hf_chat(prompt, state["hf_token"])
 
     try:
         parsed = json.loads(response)
@@ -108,15 +116,21 @@ def synthesize_node(state: AgentState):
     context = "\n\n".join(state.get("retrieved_docs", []))
 
     prompt = f"""
-        You are answering a question using ONLY the provided context.
-        You MAY:
-        - expand acronyms
-        - rephrase concepts
-        - combine multiple parts of the context
+        You are answering a follow-up question in a conversation.
+        Use the conversation history ONLY to understand what the user is referring to.
+        DO NOT quote or summarize the conversation history.
+        DO NOT treat it as factual evidence.
+        Conversation history (for reference only):
+        {state.get("memory", "")}
 
-        You MUST NOT:
-        - use external knowledge
-        - invent facts not present in the context
+        Use ONLY the retrieved context below as evidence.
+        The context may not fully answer the question.
+        Do NOT hallucinate or use external knowledge.
+
+        If a comparison is requested but only partial information is available:
+        - Explain what the context supports
+        - Clearly state what is missing
+        - Provide a cautious, evidence-based explanation
 
         Context:
         {context}
@@ -124,11 +138,10 @@ def synthesize_node(state: AgentState):
         Question:
         {state['user_query']}
 
-        Return VALID JSON ONLY.
-
+        Return VALID JSON:
         {{"answer": "..."}}
         """
-    response = hf_chat(prompt)
+    response = hf_chat(prompt, state["hf_token"])
 
     try:
         parsed = json.loads(response)
@@ -183,19 +196,26 @@ graph.add_edge("synthesize", END)
 agent = graph.compile()
 
 # Public API Function
+def run_agent(query: str, session_id: str, hf_token: str) -> dict:
+    memory = get_memory(session_id)
 
-def run_agent(query: str) -> str:
     initial_state: AgentState = {
         "user_query": query,
         "retrieved_docs": [],
         "final_answer": "",
-        "coverage": ""
+        "coverage": "",
+        "path_taken": "",
+        "memory": memory,
+        "hf_token": hf_token
     }
 
     result = agent.invoke(initial_state)
 
+    answer = result.get("final_answer", "")
+    update_memory(session_id, query, answer)
+
     return {
-        "answer": result.get("final_answer", "No answer generated."),
+        "answer": answer,
         "coverage": result.get("coverage"),
         "path_taken": result.get("path_taken")
     }
