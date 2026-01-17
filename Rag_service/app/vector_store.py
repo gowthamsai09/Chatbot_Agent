@@ -1,4 +1,5 @@
 from langchain_chroma import Chroma
+from pathlib import Path
 from langchain_huggingface import HuggingFaceEmbeddings
 from .settings import VECTORSTORE_DIR, COLLECTION_NAME
 
@@ -17,6 +18,7 @@ def get_embeddings():
 
 def get_vectorstore():
     global _vectorstore
+    VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
     if _vectorstore is None:
         _vectorstore = Chroma(
             persist_directory=str(VECTORSTORE_DIR),
