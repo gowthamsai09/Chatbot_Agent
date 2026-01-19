@@ -205,10 +205,7 @@ def ingest_docx_file(path: str, name: str, domain: str):
 
 # Upload Dispatcher
 def ingest_uploaded_document(upload_file, domain: str):
-    """
-    Ingests a user-uploaded document (PDF / DOCX / TXT).
-    Treats the file as ONE document → many chunks.
-    """
+    """ Ingests a user-uploaded document (PDF / DOCX / TXT). Treats the file as ONE document to many chunks."""
     from .rag_engine import ingest_pdf
     filename = upload_file.filename.lower()
 

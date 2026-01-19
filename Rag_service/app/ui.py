@@ -52,7 +52,7 @@ def ui():
 
 <body>
 
-<!-- ================= TOKEN GATE ================= -->
+<!-- TOKEN GATE  -->
 <div id="tokenGate" class="hidden" style="max-width:600px;">
     <h2>Enter Hugging Face Token</h2>
     <input type="password" id="hfTokenInput" placeholder="hf_..." />
@@ -60,7 +60,7 @@ def ui():
     <p id="tokenError" style="color:red;"></p>
 </div>
 
-<!-- ================= HOME ================= -->
+<!-- HOME -->
 <div id="homeView" class="hidden">
     <h1>Personalized Knowledge Assistant</h1>
 
@@ -69,7 +69,7 @@ def ui():
     <button class="nav-btn" onclick="deleteToken()">Delete Token</button>
 </div>
 
-<!-- ================= UPLOAD VIEW ================= -->
+<!--  UPLOAD VIEW  -->
 <div id="uploadView" class="hidden">
     <h2>Upload Document</h2>
 
@@ -109,7 +109,7 @@ def ui():
     <button onclick="goHome()">Back to Home</button>
 </div>
 
-<!-- ================= ASK VIEW ================= -->
+<!--  ASK VIEW  -->
 <div id="askView" class="hidden">
     <h2>Ask Questions on Indexed Data</h2>
 
@@ -147,7 +147,7 @@ def ui():
 </div>
 
 <script>
-/* ---------------- TOKEN ---------------- */
+/*  TOKEN  */
 
 const TOKEN_KEY = "hf_token";
 
@@ -171,13 +171,13 @@ function deleteToken() {
     location.reload();
 }
 
-/* ---------------- SESSION ---------------- */
+/*  SESSION  */
 
 const sessionId =
     localStorage.getItem("session_id") || crypto.randomUUID();
 localStorage.setItem("session_id", sessionId);
 
-/* ---------------- VIEW SWITCHING ---------------- */
+/*  VIEW SWITCHING  */
 
 function hideAll() {
     ["homeView", "uploadView", "askView"].forEach(id =>
@@ -203,7 +203,7 @@ function showAskView() {
     onModeChange();
 }
 
-/* ---------------- BOOT ---------------- */
+/*  BOOT  */
 
 document.addEventListener("DOMContentLoaded", () => {
     if (!getToken()) {
@@ -213,7 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-/* ---------------- UPLOAD ---------------- */
+/*  UPLOAD  */
 
 let uploadedDocumentId = null;
 
@@ -288,7 +288,7 @@ async function handleUploadSuccess(data) {
 }
 
 
-/* ---------------- ASK ON UPLOADED DOC ---------------- */
+/*  ASK ON UPLOADED DOC  */
 
 async function askOnUploadedDoc() {
     const query = document.getElementById("docQuery").value;
@@ -308,7 +308,7 @@ async function askOnUploadedDoc() {
     document.getElementById("docAnswer").innerText = data.answer || "";
 }
 
-/* ---------------- ASK (GLOBAL / DOCUMENT) ---------------- */
+/*  ASK (GLOBAL / DOCUMENT)  */
 
 
 async function loadDocuments() {

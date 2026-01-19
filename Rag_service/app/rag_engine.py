@@ -112,7 +112,7 @@ def ingest_pdf(
     if not documents:
         return {"status": "no_content"}
 
-    # OPTIONAL: Deduplication using content_hash
+    # Deduplication using content_hash
     existing_hashes = set()
 
     try:

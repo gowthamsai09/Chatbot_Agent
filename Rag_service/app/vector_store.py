@@ -42,10 +42,7 @@ def get_qdrant_client():
 
 
 def _ensure_payload_indexes(client: QdrantClient):
-    """
-    Ensure required payload indexes exist.
-    Safe to call multiple times.
-    """
+    """ Ensures required payload indexes exist."""
 
     try:
         client.create_payload_index(
@@ -54,7 +51,7 @@ def _ensure_payload_indexes(client: QdrantClient):
             field_schema=PayloadSchemaType.KEYWORD
         )
     except Exception:
-        pass  # index may already exist
+        pass  
 
     try:
         client.create_payload_index(
@@ -71,8 +68,7 @@ def get_vectorstore():
 
     if _vectorstore is None:
         client = get_qdrant_client()
-
-        # 🔑 THIS IS THE CRITICAL FIX
+        
         _ensure_payload_indexes(client)
 
         _vectorstore = QdrantVectorStore(
