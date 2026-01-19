@@ -6,11 +6,13 @@ It take few minutes to load the application as server goes to sleep after inacti
 Once server is live kindly provide hugging face token to proceed further.
 Creating Hugging Face Token: - https://huggingface.co/settings/tokens  (Create with read access)
 
-# Agentic RAG System — DeepSeek + FastAPI
+# Agentic Knowledge Assistant — DeepSeek + FastAPI
 
-A **production-style Agentic Retrieval-Augmented Generation (RAG) system** built with FastAPI, Qdrant(Cloud storage for vectors), HuggingFace DeepSeek LLM, and LangGraph.
-
-This project is designed to demonstrate **real AI engineering practices**.
+This project is a production-style Agentic Knowledge Assistant that combines Retrieval-Augmented Generation (RAG) with agentic decision-making using LangGraph.
+Unlike basic RAG demos, this system is designed to behave like a controlled AI agent:
+It refuses to hallucinate.
+It explains how an answer was produced.
+It adapts its reasoning strategy based on context coverage.
 
 ---
 ### Sample Outputs
@@ -19,19 +21,19 @@ This project is designed to demonstrate **real AI engineering practices**.
 
 ## What This Project Demonstrates
 
-This system goes beyond basic RAG and showcases:
-
-- Robust **PDF ingestion & vectorization**
-- **Grounded RAG** (hallucination-aware prompting)
-- **Agentic reasoning** using LangGraph
-- **Tool introspection** (decision transparency)
-- **Conversation memory** (multi-turn context)
-- Clean **FastAPI service architecture**
-- Simple UI for querying, ingestion, and observability
+This system goes beyond standard RAG and showcases:
+* Multi-format ingestion (PDFs + live web URLs)
+* Intelligent chunking with deduplication
+* Cloud-hosted vector storage (Qdrant Cloud)
+* Metadata-indexed retrieval (document-level & domain-level filtering)
+* Agentic reasoning using LangGraph
+* Hallucination-aware answering
+* Transparent agent introspection
+* Session-scoped conversation memory
 ---
 
 ## High-Level Architecture
-![1767339773627](image/Readme/1767339773627.png)
+![1768841932939](image/Readme/1768841932939.png)
 
 
 ---
@@ -39,28 +41,45 @@ This system goes beyond basic RAG and showcases:
 ## Core Components
 
 ### Ingestion & Vectorization
-- PDFs are parsed, chapter-detected, chunked, and embedded
-- Stored in **ChromaDB**
-- Deduplication prevents re-indexing
-- Metadata includes:
-  - book
-  - chapter
+The system supports ingesting:
+- PDFs
+- DOCX / text files
+- Live web URLs (HTML parsed via BeautifulSoup)
+## Processing pipeline:
+- Content extraction.
+- Chapter/section detection.
+- Recursive chunking
+- Deduplication using content hashing
+- Embedding via Hugging Face Inference API
+- Storage in Qdrant Cloud
+- Each chunk is stored with rich metadata:
+  - document_id
+  - document_name
   - domain
-  - source path
+  - source (upload / url)
+  - chapter
+  - content_hash
+- Payload indexes are created in Qdrant for:
+  - metadata.document_id
+  - metadata.domain
+This enables precise filtering without scanning the full vector space.
 
 **Key files**
 - `rag_engine.py`
 - `ingestion_service.py`
+- `vector_store.py`
 - `settings.py`
 
 ---
 
 ### Retrieval-Augmented Generation (RAG)
-
-- Semantic retrieval using embeddings
-- Retrieved chunks are passed verbatim
-- LLM is **strictly grounded** on retrieved context
-- No external knowledge allowed
+- Semantic similarity search using Qdrant
+- Optional filters:
+  - domain-specific
+  - document-specific
+  - Retrieved chunks are passed
+- The LLM is explicitly constrained to use only retrieved context
+- If relevant information is missing, the system fails safely instead of hallucinating.
 
 **Key file**
 - `llm_service.py`
@@ -86,13 +105,11 @@ This prevents hallucination while preserving answer quality.
 
 ### Agent Decision Flow
 The agent **never blocks answers** — it only changes *how* the answer is generated.
-![1767337005903](image/Readme/1767337005903.png)
+![1768842373236](image/Readme/1768842373236.png)
 ---
 
 ### Tool Introspection (Observability)
-
 For every query, the system exposes:
-
 - `coverage`: DIRECT / PARTIAL
 - `path_taken`: answer / synthesize
 
@@ -105,7 +122,6 @@ This makes agent behavior **transparent and debuggable**.
 ---
 
 ### Conversation Memory
-
 - Session-scoped memory
 - Short-term (last N turns)
 - Used only for reasoning continuity
@@ -122,17 +138,30 @@ Enables:
 ---
 
 ## User Interface
-
 Single-page FastAPI UI provides:
-
-- Ask questions
-- Ingest all PDFs
-- View knowledge summary
-- View agent introspection
-- Persistent session handling
+- File and URL ingestion
+- Domain selection
+- Ask-about-this-document mode
+- Global knowledge querying
+- Agent introspection visibility
+- Session persistence
 
 **Key file**
 - `ui.py`
+
+---
+
+### Deployment & Production Learnings
+- Deployed on Render with GitHub-based CI/CD
+- Migrated from local ChromaDB to Qdrant Cloud to overcome memory limits
+- Switched to remote Hugging Face embeddings to reduce server RAM usage
+- Implemented payload indexing to support filtered vector search
+- Resolved multiple issues that only surfaced in cloud deployment:
+  - Out Of Memory errors
+  - Missing payload indexes
+  - Inference latency
+
+---
 
 ![](https://komarev.com/ghpvc/?username=gowthamsai09)
 
