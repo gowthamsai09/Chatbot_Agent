@@ -12,8 +12,6 @@ from bs4 import BeautifulSoup
 
 from .settings import CHUNK_SIZE, CHUNK_OVERLAP, PDF_DIR
 from .vector_store import get_vectorstore, get_qdrant_client
-from .rag_engine import ingest_pdf
-from collections import defaultdict
 from .settings import COLLECTION_NAME
 
 
@@ -203,6 +201,7 @@ def ingest_docx_file(path: str, name: str, domain: str):
 # Upload Dispatcher
 def ingest_uploaded_document(upload_file, domain: str):
     """ Ingests a user-uploaded document (PDF / DOCX / TXT). Treats the file as ONE document to many chunks."""
+    from .rag_engine import ingest_pdf
     filename = upload_file.filename.lower()
 
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
