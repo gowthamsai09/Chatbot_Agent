@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import UploadFile, File
 
 from .rag_engine import ingest_pdf
-from .ingestion_service import ingest_all_pdfs, get_knowledge_summary
+from .ingestion_service import get_knowledge_summary
 from .settings import TOP_K
 from .rag_engine import answer_query
 from .ingestion_service import ingest_uploaded_document,ingest_url
