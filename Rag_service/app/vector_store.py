@@ -2,6 +2,15 @@ from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from qdrant_client.models import PayloadSchemaType
 from langchain_huggingface import HuggingFaceEndpointEmbeddings
+import random
+
+def _get_hf_token() -> str:
+    if not HF_TOKEN_POOL:
+        raise RuntimeError(
+            "HF_TOKEN_POOL is empty. Set HF_TOKEN_POOL env var in Render."
+        )
+    return random.choice(HF_TOKEN_POOL)
+
 
 from .settings import (
     QDRANT_URL,
@@ -21,7 +30,7 @@ def get_embeddings():
 
     if _embeddings is None:
         _embeddings = HuggingFaceEndpointEmbeddings(
-            huggingfacehub_api_token=HF_TOKEN_POOL,
+            huggingfacehub_api_token=_get_hf_token(),
             model=HF_EMBEDDING_MODEL
         )
 
