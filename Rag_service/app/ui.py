@@ -46,30 +46,20 @@ def ui():
             height: 36px;
             box-sizing: border-box;
         }
-
     </style>
 </head>
 
 <body>
 
-<!-- TOKEN GATE  -->
-<div id="tokenGate" class="hidden" style="max-width:600px;">
-    <h2>Enter Hugging Face Token</h2>
-    <input type="password" id="hfTokenInput" placeholder="hf_..." />
-    <button onclick="saveToken()">Save Token</button>
-    <p id="tokenError" style="color:red;"></p>
-</div>
-
-<!-- HOME -->
-<div id="homeView" class="hidden">
+<!-- ================= HOME ================= -->
+<div id="homeView">
     <h1>Personalized Knowledge Assistant</h1>
 
     <button class="nav-btn" onclick="showUploadView()">Upload File / URL</button>
     <button class="nav-btn" onclick="showAskView()">Ask Questions on Indexed Data</button>
-    <button class="nav-btn" onclick="deleteToken()">Delete Token</button>
 </div>
 
-<!--  UPLOAD VIEW  -->
+<!-- ================= UPLOAD VIEW ================= -->
 <div id="uploadView" class="hidden">
     <h2>Upload Document</h2>
 
@@ -109,7 +99,7 @@ def ui():
     <button onclick="goHome()">Back to Home</button>
 </div>
 
-<!--  ASK VIEW  -->
+<!-- ================= ASK VIEW ================= -->
 <div id="askView" class="hidden">
     <h2>Ask Questions on Indexed Data</h2>
 
@@ -147,37 +137,13 @@ def ui():
 </div>
 
 <script>
-/*  TOKEN  */
-
-const TOKEN_KEY = "hf_token";
-
-function getToken() {
-    return localStorage.getItem(TOKEN_KEY);
-}
-
-function saveToken() {
-    const token = document.getElementById("hfTokenInput").value.trim();
-    if (!token.startsWith("hf_")) {
-        document.getElementById("tokenError").innerText =
-            "Invalid token. Must start with hf_.";
-        return;
-    }
-    localStorage.setItem(TOKEN_KEY, token);
-    location.reload();
-}
-
-function deleteToken() {
-    localStorage.removeItem(TOKEN_KEY);
-    location.reload();
-}
-
-/*  SESSION  */
+/* ================= SESSION ================= */
 
 const sessionId =
     localStorage.getItem("session_id") || crypto.randomUUID();
 localStorage.setItem("session_id", sessionId);
 
-/*  VIEW SWITCHING  */
+/* ================= VIEW SWITCHING ================= */
 
 function hideAll() {
     ["homeView", "uploadView", "askView"].forEach(id =>
@@ -203,17 +169,13 @@ function showAskView() {
     onModeChange();
 }
 
-/*  BOOT  */
+/* ================= BOOT ================= */
 
 document.addEventListener("DOMContentLoaded", () => {
-    if (!getToken()) {
-        document.getElementById("tokenGate").classList.remove("hidden");
-    } else {
-        document.getElementById("homeView").classList.remove("hidden");
-    }
+    document.getElementById("homeView").classList.remove("hidden");
 });
 
-/*  UPLOAD  */
+/* ================= UPLOAD ================= */
 
 let uploadedDocumentId = null;
 
@@ -263,32 +225,22 @@ async function upload() {
             body: JSON.stringify({ url, domain })
         });
 
-        if (!res.ok) {
-            const err = await res.json();
-            document.getElementById("uploadResult").innerText =
-                err.detail || "Failed to ingest URL";
-            return;
-        }
-
         const data = await res.json();
         handleUploadSuccess(data);
     }
 }
 
-
-async function handleUploadSuccess(data) {
+function handleUploadSuccess(data) {
     document.getElementById("uploadResult").innerText =
         JSON.stringify(data, null, 2);
 
-    // Use document_id directly from backend
     if (data.document_id) {
         uploadedDocumentId = data.document_id;
         document.getElementById("postUploadAsk").classList.remove("hidden");
     }
 }
 
-
-/*  ASK ON UPLOADED DOC  */
+/* ================= ASK ON UPLOADED DOC ================= */
 
 async function askOnUploadedDoc() {
     const query = document.getElementById("docQuery").value;
@@ -299,7 +251,6 @@ async function askOnUploadedDoc() {
         body: JSON.stringify({
             query,
             session_id: sessionId,
-            hf_token: getToken(),
             document_id: uploadedDocumentId
         })
     });
@@ -308,8 +259,7 @@ async function askOnUploadedDoc() {
     document.getElementById("docAnswer").innerText = data.answer || "";
 }
 
-/*  ASK (GLOBAL / DOCUMENT)  */
-
+/* ================= ASK (GLOBAL / DOCUMENT) ================= */
 
 async function loadDocuments() {
     const res = await fetch("/api/knowledge");
@@ -336,7 +286,6 @@ async function loadDocuments() {
     }
 }
 
-
 function onModeChange() {
     const mode = document.getElementById("modeSelector").value;
     document.getElementById("documentSelector").classList.add("hidden");
@@ -354,12 +303,12 @@ async function ask() {
 
     const payload = {
         query: document.getElementById("queryText").value,
-        session_id: sessionId,
-        hf_token: getToken()
+        session_id: sessionId
     };
 
     if (mode === "document") {
-        payload.document_id = document.getElementById("documentList").value;
+        payload.document_id =
+            document.getElementById("documentList").value;
     }
 
     const res = await fetch("/api/query", {

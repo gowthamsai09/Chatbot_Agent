@@ -1,14 +1,19 @@
-import json
+import random
 from huggingface_hub import InferenceClient
+from .settings import HF_TOKEN_POOL
 
 MODEL_ID = "deepseek-ai/DeepSeek-V3.2"
 
 
-def hf_chat(prompt: str, hf_token: str) -> str:
-    if not hf_token or not hf_token.startswith("hf_"):
-        raise ValueError("Invalid or missing Hugging Face token")
+def _pick_hf_token() -> str:
+    if not HF_TOKEN_POOL:
+        raise RuntimeError("HF_TOKEN_POOL is not configured")
+    return random.choice(HF_TOKEN_POOL)
 
-    client = InferenceClient(token=hf_token)
+
+def hf_chat(prompt: str) -> str:
+    token = _pick_hf_token()
+    client = InferenceClient(token=token)
 
     response = client.chat.completions.create(
         model=MODEL_ID,

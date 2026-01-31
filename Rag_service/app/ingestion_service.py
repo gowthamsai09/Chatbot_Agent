@@ -7,13 +7,13 @@ import hashlib
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import requests
+from docx import Document as DocxDocument
 from bs4 import BeautifulSoup
 
 from .settings import CHUNK_SIZE, CHUNK_OVERLAP, PDF_DIR
-from .vector_store import get_vectorstore
-
+from .vector_store import get_vectorstore, get_qdrant_client
+from .rag_engine import ingest_pdf
 from collections import defaultdict
-from .vector_store import get_qdrant_client
 from .settings import COLLECTION_NAME
 
 
@@ -41,42 +41,42 @@ def get_indexed_pdf_sources() -> Set[str]:
 
     return indexed_sources
 
+# Don't need this anymore as we removed index all button from UI.
+# def ingest_all_pdfs(
+#     default_author: str = "Unknown",
+#     default_domain: str = "general"
+# ) -> Dict[str, int]:
+#     indexed_sources = get_indexed_pdf_sources()
+#     total_found = 0
+#     newly_ingested = 0
+#     skipped = 0
+#     from .rag_engine import ingest_pdf
 
-def ingest_all_pdfs(
-    default_author: str = "Unknown",
-    default_domain: str = "general"
-) -> Dict[str, int]:
-    indexed_sources = get_indexed_pdf_sources()
-    total_found = 0
-    newly_ingested = 0
-    skipped = 0
-    from .rag_engine import ingest_pdf
+#     for pdf_path in Path(PDF_DIR).glob("*.pdf"):
+#         total_found += 1
+#         pdf_str = str(pdf_path)
 
-    for pdf_path in Path(PDF_DIR).glob("*.pdf"):
-        total_found += 1
-        pdf_str = str(pdf_path)
+#         if pdf_str in indexed_sources:
+#             skipped += 1
+#             continue
 
-        if pdf_str in indexed_sources:
-            skipped += 1
-            continue
+#         book_name = pdf_path.stem
 
-        book_name = pdf_path.stem
+#         result = ingest_pdf(
+#             pdf_path=pdf_str,
+#             book=book_name,
+#             author=default_author,
+#             domain=default_domain
+#         )
 
-        result = ingest_pdf(
-            pdf_path=pdf_str,
-            book=book_name,
-            author=default_author,
-            domain=default_domain
-        )
+#         if result.get("status") == "ingested":
+#             newly_ingested += 1
 
-        if result.get("status") == "ingested":
-            newly_ingested += 1
-
-    return {
-        "pdfs_found": total_found,
-        "pdfs_ingested": newly_ingested,
-        "pdfs_skipped": skipped
-    }
+#     return {
+#         "pdfs_found": total_found,
+#         "pdfs_ingested": newly_ingested,
+#         "pdfs_skipped": skipped
+#     }
 
 
 
@@ -161,11 +161,8 @@ def ingest_text_file(path: str, name: str, domain: str):
 
 
 
-# DOCX Upload Ingestion (FIXED)
-
+# DOCX Upload Ingestion
 def ingest_docx_file(path: str, name: str, domain: str):
-    from docx import Document as DocxDocument
-
     doc = DocxDocument(path)
     text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
 
@@ -206,7 +203,6 @@ def ingest_docx_file(path: str, name: str, domain: str):
 # Upload Dispatcher
 def ingest_uploaded_document(upload_file, domain: str):
     """ Ingests a user-uploaded document (PDF / DOCX / TXT). Treats the file as ONE document to many chunks."""
-    from .rag_engine import ingest_pdf
     filename = upload_file.filename.lower()
 
     with tempfile.NamedTemporaryFile(delete=False) as tmp:

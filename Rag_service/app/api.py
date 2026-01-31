@@ -7,6 +7,7 @@ from .rag_engine import ingest_pdf
 from .ingestion_service import ingest_all_pdfs, get_knowledge_summary
 from .settings import TOP_K
 from .rag_engine import answer_query
+from .ingestion_service import ingest_uploaded_document,ingest_url
 
 router = APIRouter()
 
@@ -22,7 +23,7 @@ class IngestRequest(BaseModel):
 class QueryRequest(BaseModel):
     query: str
     session_id: str
-    hf_token: str
+    # hf_token: str
     domain: Optional[str] = None
     document_id: Optional[str] = None
     top_k: Optional[int] = TOP_K
@@ -54,12 +55,12 @@ def ingest(request: IngestRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 # Automatically ingest all PDFs present in the PDF directory. Skips already indexed PDFs
-@router.post("/ingest/all")
-def ingest_all():
-    try:
-        return ingest_all_pdfs()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# @router.post("/ingest/all") # No longer required
+# def ingest_all():
+#     try:
+#         return ingest_all_pdfs()
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
 
 # Query the RAG system with optional domain-aware retrieval.
 @router.post("/query", response_model=QueryResponse)
@@ -67,7 +68,7 @@ def query_rag(request: QueryRequest):
     try:
         result = answer_query(
             query=request.query,
-            hf_token=request.hf_token,
+            # hf_token=request.hf_token,
             domain=request.domain,
             document_id=request.document_id,
             top_k=request.top_k,
@@ -100,7 +101,6 @@ def upload_document(
     file: UploadFile = File(...),
     domain: str = "general"
 ):
-    from .ingestion_service import ingest_uploaded_document
 
     try:
         result = ingest_uploaded_document(
@@ -122,7 +122,6 @@ def upload_document(
 
 @router.post("/upload/url")
 def upload_url(request: UrlUploadRequest):
-    from .ingestion_service import ingest_url
 
     result = ingest_url(
         url=request.url,

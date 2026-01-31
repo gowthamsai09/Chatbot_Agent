@@ -3,8 +3,8 @@ This Project will be updated frequently with new features
 Test Application here: - https://personalized-knowledge-assistant.onrender.com
 It take few minutes to load the application as server goes to sleep after inactivity. 
 
-Once server is live kindly provide hugging face token to proceed further.
-Creating Hugging Face Token: - https://huggingface.co/settings/tokens  (Create with read access)
+<!-- Once server is live kindly provide hugging face token to proceed further. -->
+<!-- Creating Hugging Face Token: - https://huggingface.co/settings/tokens  (Create with read access) -->
 
 # Agentic Knowledge Assistant — DeepSeek + FastAPI
 

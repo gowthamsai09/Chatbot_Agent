@@ -15,12 +15,15 @@ VECTORSTORE_DIR = DATA_DIR / "Vectorstores"
 # Qdrant Cloud
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-
-# Qdrant DB config
 COLLECTION_NAME = "rag_documents"
 
 # Hugging Face Inference
-HF_INFERENCE_API_KEY = os.getenv("HF_INFERENCE_API_KEY")
+HF_TOKEN_POOL = [
+    t.strip()
+    for t in os.getenv("HF_TOKEN_POOL", "").split(",")
+    if t.strip()
+]
+# HF_INFERENCE_API_KEY = os.getenv("HF_INFERENCE_API_KEY")
 HF_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 # Chunking config
