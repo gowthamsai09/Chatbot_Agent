@@ -7,7 +7,7 @@ from .settings import (
     QDRANT_URL,
     QDRANT_API_KEY,
     COLLECTION_NAME,
-    HF_INFERENCE_API_KEY,
+    HF_TOKEN_POOL,
     HF_EMBEDDING_MODEL
 )
 
@@ -21,7 +21,7 @@ def get_embeddings():
 
     if _embeddings is None:
         _embeddings = HuggingFaceEndpointEmbeddings(
-            huggingfacehub_api_token=HF_INFERENCE_API_KEY,
+            huggingfacehub_api_token=HF_TOKEN_POOL,
             model=HF_EMBEDDING_MODEL
         )
 
