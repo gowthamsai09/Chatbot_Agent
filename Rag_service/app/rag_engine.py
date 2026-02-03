@@ -168,7 +168,6 @@ def retrieve(query: str, top_k: int = 5, domain: str = None, document_id: str = 
 
 def answer_query(
     query: str,
-    hf_token: str,
     domain: str = None,
     document_id: str = None,
     top_k: int = 5,
@@ -194,7 +193,6 @@ def answer_query(
     answer = generate_answer(
         question=query,
         context=context,
-        hf_token=hf_token
     )
 
     # Step 4: return structured response
