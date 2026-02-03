@@ -39,6 +39,6 @@ Question:
 """.strip()
 
 
-def generate_answer(question: str, context: str, hf_token: str) -> str:
+def generate_answer(question: str, context: str) -> str:
     prompt = build_rag_prompt(question, context)
-    return hf_chat(prompt, hf_token)
+    return hf_chat(prompt)
