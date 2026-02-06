@@ -1,5 +1,6 @@
 from typing import TypedDict, List
 import json
+import request
 from langgraph.graph import StateGraph, END
 
 from .memory_service import get_memory, update_memory
