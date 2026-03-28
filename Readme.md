@@ -20,6 +20,7 @@ This system goes beyond basic RAG and showcases:
 - **Conversation memory** (multi-turn context)
 - Clean **FastAPI service architecture**
 - Simple UI for querying, ingestion, and observability
+- **LLM-as-judge RAG evaluation** (faithfulness + answer relevancy)
 ---
 
 ## High-Level Architecture
@@ -126,13 +127,77 @@ Single-page FastAPI UI provides:
 **Key file**
 - `ui.py`
 
+### RAG Evaluation — LLM-as-Judge
+ 
+The system includes a built-in evaluation pipeline that measures answer quality
+using **DeepSeek as the judge LLM** — the same model powering the RAG pipeline itself.
+ 
+Two Ragas-equivalent metrics are computed on any set of test questions:
+ 
+| Metric | What it measures | Target |
+|---|---|---|
+| **Faithfulness** | Are all claims in the answer grounded in retrieved context? | > 0.85 |
+| **Answer Relevancy** | Does the answer actually address what was asked? | > 0.80 |
+ 
+**How it works:**
+ 
+- For each test question, the system runs the full live pipeline — retrieval + agent
+- DeepSeek judges each answer against the retrieved context (faithfulness)
+- DeepSeek also rates whether the answer addressed the original question (answer relevancy)
+- Scores are averaged across all test questions and returned with a pass/needs_review status
+ 
+**Why LLM-as-judge instead of Ragas directly:**
+ 
+Ragas 0.2.x uses Pydantic v2 schemas in its prompts which are incompatible with
+open-source models like DeepSeek — the model echoes the schema instead of filling it.
+This implementation uses the same scoring logic as Ragas internally, bypassing the
+dependency conflict while keeping the evaluation concept identical.
+ 
+**Key file**
+- `eval_service.py`
+ 
+**API endpoint**
+- `POST /api/eval`
+ 
+---
+
 ## How to Run
 
 ### Install dependencies
 ```bash
 pip install -r requirements.txt
-
-export HUGGINGFACEHUB_API_TOKEN=your_token_here
-
-Open terminal and write command: - 
-uvicorn rag_service.app.main:app --reload
+```
+ 
+### Set your HuggingFace token
+```bash
+export HUGGINGFACEHUB_API_TOKEN=your_token_here 
+- **Required finegraned token only**
+```
+ 
+### Start the server
+```bash
+uvicorn app.main:app --reload
+```
+ 
+### Run RAG evaluation
+Navigate to `http://127.0.0.1:8000`, click **Run RAG Evaluation**, enter test questions
+(one per line), and click **Run Evaluation**. Scores are returned in real time.
+ 
+---
+ 
+## Project Structure
+ 
+```
+app/
+├── main.py               # FastAPI app entry point
+├── api.py                # All API endpoints including /eval
+├── ui.py                 # Single-page browser UI
+├── settings.py           # Config — paths, chunk size, top-k
+├── rag_engine.py         # PDF ingestion + semantic retrieval
+├── ingestion_service.py  # Multi-format ingestion (PDF/DOCX/TXT/URL)
+├── vector_store.py       # ChromaDB + HuggingFace embeddings
+├── llm_service.py        # DeepSeek via HF InferenceClient
+├── agent_service.py      # LangGraph agentic reasoning pipeline
+├── memory_service.py     # Session-scoped conversation memory
+└── eval_service.py       # LLM-as-judge RAG evaluation (NEW)
+```

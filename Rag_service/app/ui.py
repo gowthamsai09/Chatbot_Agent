@@ -46,7 +46,6 @@ def ui():
             height: 36px;
             box-sizing: border-box;
         }
-
     </style>
 </head>
 
@@ -63,10 +62,10 @@ def ui():
 <!-- ================= HOME ================= -->
 <div id="homeView" class="hidden">
     <h1>Personalized Knowledge Assistant</h1>
-
     <button class="nav-btn" onclick="showUploadView()">Upload File / URL</button>
     <button class="nav-btn" onclick="showAskView()">Ask Questions on Indexed Data</button>
     <button class="nav-btn" onclick="deleteToken()">Delete Token</button>
+    <button class="nav-btn" onclick="showEvalView()">Run RAG Evaluation</button>
 </div>
 
 <!-- ================= UPLOAD VIEW ================= -->
@@ -96,7 +95,6 @@ def ui():
     <button onclick="upload()">Upload & Index</button>
     <pre id="uploadResult"></pre>
 
-    <!-- Ask on same document -->
     <div id="postUploadAsk" class="hidden">
         <hr>
         <h3>Ask about this document</h3>
@@ -146,6 +144,26 @@ def ui():
     <button onclick="goHome()">Back to Home</button>
 </div>
 
+<!-- ================= EVAL VIEW ================= -->
+<div id="evalView" class="hidden">
+    <h2>RAG Evaluation — Ragas Scores</h2>
+    <p>Enter test questions below (one per line).
+       The system will run your live pipeline on each
+       question and return Ragas scores.</p>
+
+    <textarea id="evalQuestions" rows="6"
+        placeholder="How do I reset my SAP password?
+What is the SLA for P1 incidents?
+How do I raise a change request?">
+    </textarea>
+
+    <button onclick="runEval()">Run Evaluation</button>
+    <pre id="evalResult"></pre>
+
+    <hr>
+    <button onclick="goHome()">Back to Home</button>
+</div>
+
 <script>
 /* ---------------- TOKEN ---------------- */
 
@@ -180,7 +198,8 @@ localStorage.setItem("session_id", sessionId);
 /* ---------------- VIEW SWITCHING ---------------- */
 
 function hideAll() {
-    ["homeView", "uploadView", "askView"].forEach(id =>
+    // BUG FIX: evalView added here so it is properly hidden on every navigation
+    ["homeView", "uploadView", "askView", "evalView"].forEach(id =>
         document.getElementById(id).classList.add("hidden")
     );
 }
@@ -201,6 +220,11 @@ function showAskView() {
     hideAll();
     document.getElementById("askView").classList.remove("hidden");
     onModeChange();
+}
+
+function showEvalView() {
+    hideAll();
+    document.getElementById("evalView").classList.remove("hidden");
 }
 
 /* ---------------- BOOT ---------------- */
@@ -378,6 +402,55 @@ async function ask() {
             (data.sources || []).join("\\n");
     }
 }
+
+/* ---------------- EVAL ---------------- */
+
+async function runEval() {
+    const raw = document.getElementById("evalQuestions").value;
+
+    const questions = raw
+        .split("\\n")
+        .map(q => q.trim())
+        .filter(q => q.length > 0);
+
+    if (questions.length === 0) {
+        alert("Enter at least one question.");
+        return;
+    }
+
+    document.getElementById("evalResult").innerText =
+        "Running evaluation... this may take 1-2 minutes.";
+
+    const res = await fetch("/api/eval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            test_questions: questions,
+            session_id: sessionId,
+            hf_token: getToken()
+        })
+    });
+
+    const data = await res.json();
+
+    const output = `
+Ragas Evaluation Results
+========================
+Questions evaluated : ${data.num_questions}
+Faithfulness        : ${data.faithfulness}  (target > 0.85)
+Answer Relevancy    : ${data.answer_relevancy}  (target > 0.80)
+Overall status      : ${data.status}
+
+Interpretation:
+- Faithfulness: are answers grounded in your documents?
+- Answer Relevancy: do answers address what was asked?
+- Status "pass" means both metrics are above production thresholds.
+    `.trim();
+
+    document.getElementById("evalResult").innerText = output;
+}
+
+/* ---------------- UPLOAD TYPE TOGGLE ---------------- */
 
 function onUploadTypeChange() {
     const type = document.getElementById("uploadType").value;

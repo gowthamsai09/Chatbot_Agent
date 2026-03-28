@@ -7,6 +7,7 @@ from .rag_engine import ingest_pdf, retrieve
 from .ingestion_service import ingest_all_pdfs, get_knowledge_summary
 from .settings import TOP_K
 from .agent_service import run_agent
+from .eval_service import run_eval
 
 router = APIRouter()
 
@@ -38,8 +39,13 @@ class UrlUploadRequest(BaseModel):
     url: str
     domain: str = "general"
 
-# API Endpoints
+# For evaluation metrics using ragas
+class EvalRequest(BaseModel):
+    test_questions: List[str]
+    session_id: str
+    hf_token: str
 
+# API Endpoints
 # Ingest a single PDF into the vector store.
 @router.post("/ingest")
 def ingest(request: IngestRequest):
@@ -135,6 +141,24 @@ def upload_url(request: UrlUploadRequest):
         raise HTTPException(status_code=400, detail=result["message"])
 
     return result
+
+# Eval endpoint, runs Ragas on live pipeline
+@router.post("/eval")
+def eval_rag(request: EvalRequest):
+    try:
+        if not request.test_questions:
+            raise HTTPException(
+                status_code=400,
+                detail="Provide at least one test question"
+            )
+        scores = run_eval(
+            test_questions=request.test_questions,
+            session_id =  request.session_id,
+            hf_token = request.hf_token
+        )
+        return scores
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/health")
 def health():
