@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from .api import router as api_router
-from .ui import router as ui_router
+from app.api import router as api_router
+from app.ui import router as ui_router
 
 app = FastAPI(
     title="Knowledge Service",
