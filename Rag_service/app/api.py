@@ -3,10 +3,11 @@ from pydantic import BaseModel
 from typing import List, Optional
 from fastapi import UploadFile, File
 
-from .rag_engine import ingest_pdf, retrieve
-from .ingestion_service import ingest_all_pdfs, get_knowledge_summary
+from .rag_engine import ingest_pdf
+from .ingestion_service import get_knowledge_summary
 from .settings import TOP_K
-from .agent_service import run_agent
+from .rag_engine import answer_query
+from .ingestion_service import ingest_uploaded_document,ingest_url
 from .eval_service import run_eval
 
 router = APIRouter()
@@ -23,7 +24,7 @@ class IngestRequest(BaseModel):
 class QueryRequest(BaseModel):
     query: str
     session_id: str
-    hf_token: str
+    # hf_token: str
     domain: Optional[str] = None
     document_id: Optional[str] = None
     top_k: Optional[int] = TOP_K
@@ -60,50 +61,38 @@ def ingest(request: IngestRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 # Automatically ingest all PDFs present in the PDF directory. Skips already indexed PDFs
-@router.post("/ingest/all")
-def ingest_all():
-    try:
-        return ingest_all_pdfs()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# @router.post("/ingest/all") # No longer required
+# def ingest_all():
+#     try:
+#         return ingest_all_pdfs()
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
 
 # Query the RAG system with optional domain-aware retrieval.
 @router.post("/query", response_model=QueryResponse)
 def query_rag(request: QueryRequest):
     try:
-        results = retrieve(
+        result = answer_query(
             query=request.query,
-            top_k=request.top_k,
+            # hf_token=request.hf_token,
             domain=request.domain,
-            document_id=request.document_id
+            document_id=request.document_id,
+            top_k=request.top_k,
         )
 
-        if not results:
-            return QueryResponse(
-                answer="I do not have enough information to answer this question.",
-                sources=[]
-            )
-
-        # Collect unique sources
-        sources = list({
-            doc.metadata.get("source", "unknown")
-            for doc in results
-        })
-
-        agent_result = run_agent(query= request.query, session_id=request.session_id,hf_token=request.hf_token)
-        answer = agent_result["answer"]
-        coverage = agent_result.get("coverage")
-        path_taken = agent_result.get("path_taken")
         return QueryResponse(
-            answer=answer,
-            sources=sources,
-            coverage=coverage,
-            path_taken=path_taken
+            answer=result["answer"],
+            sources=[
+                f'{src.get("document")} - {src.get("chapter")}'
+                for src in result.get("sources", [])
+            ],
+            coverage="vectorstore",
+            path_taken="retrieval → hf_llm"
         )
 
-    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 # Returns what data the system is trained on
 @router.get("/knowledge")
@@ -118,19 +107,27 @@ def upload_document(
     file: UploadFile = File(...),
     domain: str = "general"
 ):
-    try:
-        from .ingestion_service import ingest_uploaded_document
 
-        return ingest_uploaded_document(
+    try:
+        result = ingest_uploaded_document(
             upload_file=file,
             domain=domain
         )
+        return {
+            "status": result.get("status"),
+            "document": result.get("document"),
+            "document_id": result.get("document_id"),
+            "chunks_added": result.get("details", {}).get("chunks_added", 0)
+        }
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 
 @router.post("/upload/url")
 def upload_url(request: UrlUploadRequest):
-    from .ingestion_service import ingest_url
 
     result = ingest_url(
         url=request.url,

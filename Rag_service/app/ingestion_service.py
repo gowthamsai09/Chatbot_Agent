@@ -7,10 +7,13 @@ from docx import Document as DocxDocument
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import requests
+from docx import Document as DocxDocument
 from bs4 import BeautifulSoup
 
 from .settings import CHUNK_SIZE, CHUNK_OVERLAP, PDF_DIR
-from .vector_store import get_vectorstore
+from .vector_store import get_vectorstore, get_qdrant_client
+from .settings import COLLECTION_NAME
+
 
 
 
@@ -36,78 +39,84 @@ def get_indexed_pdf_sources() -> Set[str]:
 
     return indexed_sources
 
+# Don't need this anymore as we removed index all button from UI.
+# def ingest_all_pdfs(
+#     default_author: str = "Unknown",
+#     default_domain: str = "general"
+# ) -> Dict[str, int]:
+#     indexed_sources = get_indexed_pdf_sources()
+#     total_found = 0
+#     newly_ingested = 0
+#     skipped = 0
+#     from .rag_engine import ingest_pdf
 
-def ingest_all_pdfs(
-    default_author: str = "Unknown",
-    default_domain: str = "general"
-) -> Dict[str, int]:
-    indexed_sources = get_indexed_pdf_sources()
-    total_found = 0
-    newly_ingested = 0
-    skipped = 0
-    from .rag_engine import ingest_pdf
+#     for pdf_path in Path(PDF_DIR).glob("*.pdf"):
+#         total_found += 1
+#         pdf_str = str(pdf_path)
 
-    for pdf_path in Path(PDF_DIR).glob("*.pdf"):
-        total_found += 1
-        pdf_str = str(pdf_path)
+#         if pdf_str in indexed_sources:
+#             skipped += 1
+#             continue
 
-        if pdf_str in indexed_sources:
-            skipped += 1
-            continue
+#         book_name = pdf_path.stem
 
-        book_name = pdf_path.stem
+#         result = ingest_pdf(
+#             pdf_path=pdf_str,
+#             book=book_name,
+#             author=default_author,
+#             domain=default_domain
+#         )
 
-        result = ingest_pdf(
-            pdf_path=pdf_str,
-            book=book_name,
-            author=default_author,
-            domain=default_domain
-        )
+#         if result.get("status") == "ingested":
+#             newly_ingested += 1
 
-        if result.get("status") == "ingested":
-            newly_ingested += 1
-
-    return {
-        "pdfs_found": total_found,
-        "pdfs_ingested": newly_ingested,
-        "pdfs_skipped": skipped
-    }
+#     return {
+#         "pdfs_found": total_found,
+#         "pdfs_ingested": newly_ingested,
+#         "pdfs_skipped": skipped
+#     }
 
 
 
-# Knowledge Summary (FIX)
-def get_knowledge_summary() -> Dict[str, List[str]]:
-    vectorstore = get_vectorstore()
+# Knowledge Summary - For Qdrant
+def get_knowledge_summary():
+    client = get_qdrant_client()
 
     documents = {}
     domains = set()
-    chapters = set()
 
-    try:
-        data = vectorstore.get(include=["metadatas"])
-        for meta in data.get("metadatas", []):
-            if not meta:
-                continue
+    # Scroll through all points
+    offset = None
+    while True:
+        points, offset = client.scroll(
+            collection_name=COLLECTION_NAME,
+            limit=100,
+            with_payload=True,
+            offset=offset
+        )
 
-            doc_id = meta.get("document_id")
-            doc_name = meta.get("document_name")
+        for point in points:
+            payload = point.payload or {}
+            metadata = payload.get("metadata", {})
+
+            doc_id = metadata.get("document_id")
+            doc_name = metadata.get("document_name")
+            domain = metadata.get("domain")
 
             if doc_id and doc_name:
                 documents[doc_id] = doc_name
 
-            domains.add(meta.get("domain", "unknown"))
+            if domain:
+                domains.add(domain)
 
-            if "chapter" in meta:
-                chapters.add(meta.get("chapter"))
-
-    except Exception:
-        pass
+        if offset is None:
+            break
 
     return {
         "documents": documents,
-        "domains": sorted(domains),
-        "sample_chapters": sorted(list(chapters))[:10]
+        "domains": sorted(domains)
     }
+
 
 
 
@@ -150,8 +159,7 @@ def ingest_text_file(path: str, name: str, domain: str):
 
 
 
-# DOCX Upload Ingestion (FIXED)
-
+# DOCX Upload Ingestion
 def ingest_docx_file(path: str, name: str, domain: str):
 
     doc = DocxDocument(path)
@@ -193,10 +201,7 @@ def ingest_docx_file(path: str, name: str, domain: str):
 
 # Upload Dispatcher
 def ingest_uploaded_document(upload_file, domain: str):
-    """
-    Ingests a user-uploaded document (PDF / DOCX / TXT).
-    Treats the file as ONE document → many chunks.
-    """
+    """ Ingests a user-uploaded document (PDF / DOCX / TXT). Treats the file as ONE document to many chunks."""
     from .rag_engine import ingest_pdf
     filename = upload_file.filename.lower()
 

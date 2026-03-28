@@ -3,7 +3,7 @@ from .api import router as api_router
 from .ui import router as ui_router
 
 app = FastAPI(
-    title="RAG Knowledge Service",
+    title="Knowledge Service",
     version="1.0.0"
 )
 

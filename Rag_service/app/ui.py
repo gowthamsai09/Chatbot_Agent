@@ -51,20 +51,11 @@ def ui():
 
 <body>
 
-<!-- ================= TOKEN GATE ================= -->
-<div id="tokenGate" class="hidden" style="max-width:600px;">
-    <h2>Enter Hugging Face Token</h2>
-    <input type="password" id="hfTokenInput" placeholder="hf_..." />
-    <button onclick="saveToken()">Save Token</button>
-    <p id="tokenError" style="color:red;"></p>
-</div>
-
 <!-- ================= HOME ================= -->
-<div id="homeView" class="hidden">
+<div id="homeView">
     <h1>Personalized Knowledge Assistant</h1>
     <button class="nav-btn" onclick="showUploadView()">Upload File / URL</button>
     <button class="nav-btn" onclick="showAskView()">Ask Questions on Indexed Data</button>
-    <button class="nav-btn" onclick="deleteToken()">Delete Token</button>
     <button class="nav-btn" onclick="showEvalView()">Run RAG Evaluation</button>
 </div>
 
@@ -165,37 +156,13 @@ How do I raise a change request?">
 </div>
 
 <script>
-/* ---------------- TOKEN ---------------- */
-
-const TOKEN_KEY = "hf_token";
-
-function getToken() {
-    return localStorage.getItem(TOKEN_KEY);
-}
-
-function saveToken() {
-    const token = document.getElementById("hfTokenInput").value.trim();
-    if (!token.startsWith("hf_")) {
-        document.getElementById("tokenError").innerText =
-            "Invalid token. Must start with hf_.";
-        return;
-    }
-    localStorage.setItem(TOKEN_KEY, token);
-    location.reload();
-}
-
-function deleteToken() {
-    localStorage.removeItem(TOKEN_KEY);
-    location.reload();
-}
-
-/* ---------------- SESSION ---------------- */
+/* ================= SESSION ================= */
 
 const sessionId =
     localStorage.getItem("session_id") || crypto.randomUUID();
 localStorage.setItem("session_id", sessionId);
 
-/* ---------------- VIEW SWITCHING ---------------- */
+/* ================= VIEW SWITCHING ================= */
 
 function hideAll() {
     // BUG FIX: evalView added here so it is properly hidden on every navigation
@@ -230,14 +197,10 @@ function showEvalView() {
 /* ---------------- BOOT ---------------- */
 
 document.addEventListener("DOMContentLoaded", () => {
-    if (!getToken()) {
-        document.getElementById("tokenGate").classList.remove("hidden");
-    } else {
-        document.getElementById("homeView").classList.remove("hidden");
-    }
+    document.getElementById("homeView").classList.remove("hidden");
 });
 
-/* ---------------- UPLOAD ---------------- */
+/* ================= UPLOAD ================= */
 
 let uploadedDocumentId = null;
 
@@ -287,42 +250,22 @@ async function upload() {
             body: JSON.stringify({ url, domain })
         });
 
-        if (!res.ok) {
-            const err = await res.json();
-            document.getElementById("uploadResult").innerText =
-                err.detail || "Failed to ingest URL";
-            return;
-        }
-
         const data = await res.json();
         handleUploadSuccess(data);
     }
 }
 
-async function handleUploadSuccess(data) {
+function handleUploadSuccess(data) {
     document.getElementById("uploadResult").innerText =
         JSON.stringify(data, null, 2);
 
-    if (!data || !data.document) return;
-
-    const res = await fetch("/api/knowledge");
-    const knowledge = await res.json();
-
-    uploadedDocumentId = null;
-
-    for (const [id, name] of Object.entries(knowledge.documents || {})) {
-        if (name === data.document) {
-            uploadedDocumentId = id;
-            break;
-        }
-    }
-
-    if (uploadedDocumentId) {
+    if (data.document_id) {
+        uploadedDocumentId = data.document_id;
         document.getElementById("postUploadAsk").classList.remove("hidden");
     }
 }
 
-/* ---------------- ASK ON UPLOADED DOC ---------------- */
+/* ================= ASK ON UPLOADED DOC ================= */
 
 async function askOnUploadedDoc() {
     const query = document.getElementById("docQuery").value;
@@ -333,7 +276,6 @@ async function askOnUploadedDoc() {
         body: JSON.stringify({
             query,
             session_id: sessionId,
-            hf_token: getToken(),
             document_id: uploadedDocumentId
         })
     });
@@ -342,7 +284,7 @@ async function askOnUploadedDoc() {
     document.getElementById("docAnswer").innerText = data.answer || "";
 }
 
-/* ---------------- ASK (GLOBAL / DOCUMENT) ---------------- */
+/* ================= ASK (GLOBAL / DOCUMENT) ================= */
 
 async function loadDocuments() {
     const res = await fetch("/api/knowledge");
@@ -351,7 +293,17 @@ async function loadDocuments() {
     const select = document.getElementById("documentList");
     select.innerHTML = "";
 
-    for (const [id, name] of Object.entries(data.documents || {})) {
+    const documents = data.documents || {};
+
+    if (Object.keys(documents).length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.innerText = "No documents indexed";
+        select.appendChild(opt);
+        return;
+    }
+
+    for (const [id, name] of Object.entries(documents)) {
         const opt = document.createElement("option");
         opt.value = id;
         opt.innerText = name;
@@ -376,12 +328,12 @@ async function ask() {
 
     const payload = {
         query: document.getElementById("queryText").value,
-        session_id: sessionId,
-        hf_token: getToken()
+        session_id: sessionId
     };
 
     if (mode === "document") {
-        payload.document_id = document.getElementById("documentList").value;
+        payload.document_id =
+            document.getElementById("documentList").value;
     }
 
     const res = await fetch("/api/query", {
