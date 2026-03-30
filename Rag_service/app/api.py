@@ -5,14 +5,49 @@ from fastapi import UploadFile, File
 
 from .rag_engine import ingest_pdf
 from .ingestion_service import get_knowledge_summary
-from .settings import TOP_K
+from .settings import TOP_K, get_hf_token
 from .rag_engine import answer_query
 from .ingestion_service import ingest_uploaded_document,ingest_url
+from .eval_service import run_eval
+import os
 
 router = APIRouter()
 
 
 # Request / Response Models
+class TokenRequest(BaseModel):
+    hf_token: str
+
+
+@router.post("/set-token")
+def set_token(request: TokenRequest):
+    try:
+        from .settings import set_hf_token
+        
+        # Empty token = use ENV pool
+        token_to_set = request.hf_token.strip() if request.hf_token else ""
+        
+        set_hf_token(token_to_set)
+        
+        if token_to_set:
+            message = "User token stored successfully"
+        else:
+            message = "Configured to use server token pool"
+
+        return {
+            "status": "success", 
+            "message": message
+        }
+    
+    except Exception as e:
+        import traceback
+        print(f"Error in set-token: {e}")
+        traceback.print_exc()
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+    
 class IngestRequest(BaseModel):
     pdf_path: str
     book: str
@@ -23,7 +58,7 @@ class IngestRequest(BaseModel):
 class QueryRequest(BaseModel):
     query: str
     session_id: str
-    # hf_token: str
+    hf_token: Optional[str] = None
     domain: Optional[str] = None
     document_id: Optional[str] = None
     top_k: Optional[int] = TOP_K
@@ -39,8 +74,13 @@ class UrlUploadRequest(BaseModel):
     url: str
     domain: str = "general"
 
-# API Endpoints
+# For evaluation metrics using ragas
+class EvalRequest(BaseModel):
+    test_questions: List[str]
+    session_id: str
+    hf_token: str
 
+# API Endpoints
 # Ingest a single PDF into the vector store.
 @router.post("/ingest")
 def ingest(request: IngestRequest):
@@ -65,10 +105,11 @@ def ingest(request: IngestRequest):
 # Query the RAG system with optional domain-aware retrieval.
 @router.post("/query", response_model=QueryResponse)
 def query_rag(request: QueryRequest):
+    hf_token = request.hf_token or get_hf_token()
     try:
         result = answer_query(
             query=request.query,
-            # hf_token=request.hf_token,
+            hf_token=hf_token,
             domain=request.domain,
             document_id=request.document_id,
             top_k=request.top_k,
@@ -132,6 +173,26 @@ def upload_url(request: UrlUploadRequest):
         raise HTTPException(status_code=400, detail=result["message"])
 
     return result
+
+# Eval endpoint, runs Ragas on live pipeline
+@router.post("/eval")
+def eval_rag(request: EvalRequest):
+    try:
+        hf_token = request.hf_token or get_hf_token()
+        if not hf_token:
+            raise HTTPException(
+                status_code=400,
+                detail="No HuggingFace token provided (UI or ENV)"
+            )
+
+        scores = run_eval(
+            test_questions=request.test_questions,
+            session_id=request.session_id,
+            hf_token=hf_token
+        )
+        return scores
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/health")
 def health():

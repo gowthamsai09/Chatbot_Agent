@@ -4,25 +4,34 @@ from qdrant_client.models import PayloadSchemaType
 from langchain_huggingface import HuggingFaceEndpointEmbeddings
 import random
 
-def _get_hf_token() -> str:
-    if not HF_TOKEN_POOL:
-        raise RuntimeError(
-            "HF_TOKEN_POOL is empty. Set HF_TOKEN_POOL env var in Render."
-        )
-    return random.choice(HF_TOKEN_POOL)
-
-
 from .settings import (
     QDRANT_URL,
     QDRANT_API_KEY,
     COLLECTION_NAME,
     HF_TOKEN_POOL,
-    HF_EMBEDDING_MODEL
+    HF_EMBEDDING_MODEL,
+    get_hf_token
 )
 
 _vectorstore = None
 _embeddings = None
 _qdrant_client = None
+
+
+def _get_hf_token() -> str:
+    """Pick a token: user-provided token takes precedence over pool"""
+    user_token = get_hf_token()
+    
+    # If user provided a token, use it
+    if user_token:
+        return user_token
+    
+    # Otherwise fall back to pool
+    if not HF_TOKEN_POOL:
+        raise RuntimeError(
+            "HF_TOKEN_POOL is empty. Set HF_TOKEN_POOL env var in Render."
+        )
+    return random.choice(HF_TOKEN_POOL)
 
 
 def get_embeddings():

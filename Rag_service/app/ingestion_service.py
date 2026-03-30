@@ -3,7 +3,7 @@ from typing import List, Dict, Set
 import tempfile
 import shutil
 import hashlib
-
+from docx import Document as DocxDocument
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import requests
@@ -161,6 +161,7 @@ def ingest_text_file(path: str, name: str, domain: str):
 
 # DOCX Upload Ingestion
 def ingest_docx_file(path: str, name: str, domain: str):
+
     doc = DocxDocument(path)
     text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
 

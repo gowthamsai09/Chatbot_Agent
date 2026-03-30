@@ -1,11 +1,17 @@
 from fastapi import FastAPI
-from .api import router as api_router
-from .ui import router as ui_router
+import logging
+from app.api import router as api_router
+from app.ui import router as ui_router
+from dotenv import load_dotenv
+load_dotenv()
 
-app = FastAPI(
-    title="Knowledge Service",
-    version="1.0.0"
-)
+logging.basicConfig(level=logging.INFO)
+
+app = FastAPI()
+
+@app.on_event("startup")
+def startup_event():
+    print("FastAPI app started successfully")
 
 app.include_router(ui_router)
-app.include_router(api_router, prefix="/api")  # APIs at /api/*
+app.include_router(api_router, prefix="/api")
