@@ -1,13 +1,24 @@
 import random
 from huggingface_hub import InferenceClient
-from .settings import HF_TOKEN_POOL
+from .settings import HF_TOKEN_POOL, get_hf_token
 
 MODEL_ID = "deepseek-ai/DeepSeek-V3.2"
 
 
 def _pick_hf_token() -> str:
+    """Pick a token: user-provided token takes precedence over pool"""
+    user_token = get_hf_token()
+    
+    # If user provided a token, use it
+    if user_token:
+        return user_token
+    
+    # Otherwise fall back to pool
     if not HF_TOKEN_POOL:
-        raise RuntimeError("HF_TOKEN_POOL is not configured")
+        raise RuntimeError(
+            "No HuggingFace token available. "
+            "Either provide a token via UI or set HF_TOKEN_POOL environment variable."
+        )
     return random.choice(HF_TOKEN_POOL)
 
 

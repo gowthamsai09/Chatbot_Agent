@@ -1,6 +1,18 @@
 from pathlib import Path
 import os
 
+# User-provided token (from UI)
+_USER_HF_TOKEN = None
+
+def set_hf_token(token: str):
+    """Set user-provided HF token from UI. Empty string means use ENV pool."""
+    global _USER_HF_TOKEN
+    _USER_HF_TOKEN = token if token else None
+
+def get_hf_token():
+    """Get user token if available, otherwise return None (will use pool)"""
+    return _USER_HF_TOKEN
+
 # Project root: Prep/
 BASE_DIR = Path(__file__).resolve().parents[2]
 

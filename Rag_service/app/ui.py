@@ -51,12 +51,28 @@ def ui():
 
 <body>
 
+<div id="tokenView">
+    <h1>Setup Required</h1>
+    <h3>Enter HuggingFace Token</h3>
+
+    <input type="password" id="hfTokenInput" placeholder="hf_..." />
+
+    <button onclick="saveTokenAndProceed()">Save Token</button>
+
+    <p>OR</p>
+    <button onclick="useEnvToken()">Use Server Token</button>
+
+    <pre id="tokenMessage"></pre>
+</div>
+
 <!-- ================= HOME ================= -->
-<div id="homeView">
+<div id="homeView" class="hidden">
     <h1>Personalized Knowledge Assistant</h1>
+    <p id="tokenIndicator"></p>
     <button class="nav-btn" onclick="showUploadView()">Upload File / URL</button>
     <button class="nav-btn" onclick="showAskView()">Ask Questions on Indexed Data</button>
     <button class="nav-btn" onclick="showEvalView()">Run RAG Evaluation</button>
+    <button onclick="deleteToken()">Delete Token</button>
 </div>
 
 <!-- ================= UPLOAD VIEW ================= -->
@@ -144,8 +160,8 @@ def ui():
 
     <textarea id="evalQuestions" rows="6"
         placeholder="How do I reset my SAP password?
-What is the SLA for P1 incidents?
-How do I raise a change request?">
+            What is the SLA for P1 incidents?
+            How do I raise a change request?">
     </textarea>
 
     <button onclick="runEval()">Run Evaluation</button>
@@ -158,22 +174,32 @@ How do I raise a change request?">
 <script>
 /* ================= SESSION ================= */
 
-const sessionId =
-    localStorage.getItem("session_id") || crypto.randomUUID();
-localStorage.setItem("session_id", sessionId);
+function generateSessionId() {
+    return 'xxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+let sessionId = localStorage.getItem("session_id");
+
+if (!sessionId) {
+    sessionId = generateSessionId();
+    localStorage.setItem("session_id", sessionId);
+}
 
 /* ================= VIEW SWITCHING ================= */
 
 function hideAll() {
     // BUG FIX: evalView added here so it is properly hidden on every navigation
-    ["homeView", "uploadView", "askView", "evalView"].forEach(id =>
+    ["tokenView", "homeView", "uploadView", "askView", "evalView"].forEach(id =>
         document.getElementById(id).classList.add("hidden")
     );
 }
 
 function goHome() {
-    hideAll();
-    document.getElementById("homeView").classList.remove("hidden");
+    showHome();
 }
 
 function showUploadView() {
@@ -194,10 +220,131 @@ function showEvalView() {
     document.getElementById("evalView").classList.remove("hidden");
 }
 
+function showTokenView() {
+    hideAll();
+    document.getElementById("tokenView").classList.remove("hidden");
+}
+
+function showHome() {
+    hideAll();
+    document.getElementById("homeView").classList.remove("hidden");
+}
+
 /* ---------------- BOOT ---------------- */
 
+function getToken() {
+    return localStorage.getItem("hf_token") || "";
+}
+
+async function saveTokenAndProceed() {
+    const token = document.getElementById("hfTokenInput").value.trim();
+
+    if (!token) {
+        document.getElementById("tokenMessage").innerText =
+            "❌ Please enter a valid HuggingFace token";
+        return;
+    }
+
+    document.getElementById("tokenMessage").innerText = "⏳ Saving token...";
+
+    try {
+        const res = await fetch("/api/set-token", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ hf_token: token })
+        });
+
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+
+        const data = await res.json();
+
+        if (data.status === "success") {
+            localStorage.setItem("hf_token", token);
+
+            document.getElementById("tokenMessage").innerText =
+                "✅ Token saved successfully!";
+
+            setTimeout(showHome, 800);
+        } else {
+            document.getElementById("tokenMessage").innerText =
+                "❌ " + (data.message || "Failed to save token");
+        }
+
+    } catch (err) {
+        console.error("Token save error:", err);
+        document.getElementById("tokenMessage").innerText =
+            "❌ Network error: " + err.message;
+    }
+}
+
+// Use server environment token pool
+async function useEnvToken() {
+    document.getElementById("tokenMessage").innerText = 
+        "⏳ Configuring server token...";
+
+    try {
+        const res = await fetch("/api/set-token", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ hf_token: "" })  // Empty = use ENV pool
+        });
+
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+
+        const data = await res.json();
+
+        if (data.status === "success") {
+            localStorage.setItem("hf_token", "USE_ENV");
+            
+            document.getElementById("tokenMessage").innerText =
+                "✅ Using server token pool";
+
+            setTimeout(showHome, 800);
+        } else {
+            document.getElementById("tokenMessage").innerText =
+                "❌ " + (data.message || "Failed to configure server token");
+        }
+
+    } catch (err) {
+        console.error("Server token error:", err);
+        document.getElementById("tokenMessage").innerText =
+            "❌ Network error: " + err.message + 
+            "\\n\\nMake sure HF_TOKEN_POOL is set in your environment variables.";
+    }
+}
+
+function deleteToken() {
+    localStorage.removeItem("hf_token");
+    alert("Token deleted");
+    showTokenView();
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("homeView").classList.remove("hidden");
+    console.log("🚀 App loaded");
+    
+    const token = getToken();
+    console.log("📝 Token status:", token ? (token === "USE_ENV" ? "Using ENV" : "User token set") : "No token");
+
+    if (token && token !== "") {
+        console.log("✅ Token found, showing home");
+        showHome();
+
+        const indicator = document.getElementById("tokenIndicator");
+        if (indicator) {
+            const status = token === "USE_ENV" 
+                ? "Token Status: Using Server Pool" 
+                : "Token Status: User Token Connected";
+            indicator.innerText = status;
+            indicator.style.color = "#28a745";
+        }
+    } else {
+        console.log("⚠️ No token, showing token view");
+        showTokenView();
+    }
 });
 
 /* ================= UPLOAD ================= */
@@ -325,10 +472,12 @@ function onModeChange() {
 
 async function ask() {
     const mode = document.getElementById("modeSelector").value;
-
+    let token = getToken();
+    if (token === "USE_ENV") token = "";
     const payload = {
         query: document.getElementById("queryText").value,
-        session_id: sessionId
+        session_id: sessionId,
+        hf_token: token
     };
 
     if (mode === "document") {
@@ -346,10 +495,10 @@ async function ask() {
     document.getElementById("answer").innerText = data.answer || "";
 
     if (mode === "global") {
-        document.getElementById("introspection").innerHTML = `
-            <strong>Coverage:</strong> ${data.coverage ?? "N/A"}<br>
-            <strong>Path taken:</strong> ${data.path_taken ?? "N/A"}
-        `;
+        document.getElementById("introspection").innerHTML =
+        "<strong>Coverage:</strong> " + (data.coverage || "N/A") + "<br>" +
+        "<strong>Path taken:</strong> " + (data.path_taken || "N/A");
+        
         document.getElementById("sources").innerText =
             (data.sources || []).join("\\n");
     }
@@ -373,31 +522,31 @@ async function runEval() {
     document.getElementById("evalResult").innerText =
         "Running evaluation... this may take 1-2 minutes.";
 
+    let token = getToken();
+
+    // If user selected ENV mode, send empty string
+    if (token === "USE_ENV") {
+        token = "";
+    }
+
     const res = await fetch("/api/eval", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             test_questions: questions,
             session_id: sessionId,
-            hf_token: getToken()
+            hf_token: token
         })
     });
 
     const data = await res.json();
-
-    const output = `
-Ragas Evaluation Results
-========================
-Questions evaluated : ${data.num_questions}
-Faithfulness        : ${data.faithfulness}  (target > 0.85)
-Answer Relevancy    : ${data.answer_relevancy}  (target > 0.80)
-Overall status      : ${data.status}
-
-Interpretation:
-- Faithfulness: are answers grounded in your documents?
-- Answer Relevancy: do answers address what was asked?
-- Status "pass" means both metrics are above production thresholds.
-    `.trim();
+    const output =(
+    "Ragas Evaluation Results\\n" +
+    "========================\\n" +
+    "Questions evaluated : " + data.num_questions + "\\n" +
+    "Faithfulness        : " + data.faithfulness + " (target > 0.85)\\n" +
+    "Answer Relevancy    : " + data.answer_relevancy + " (target > 0.80)\\n" +
+    "Overall status      : " + data.status).trim();
 
     document.getElementById("evalResult").innerText = output;
 }
