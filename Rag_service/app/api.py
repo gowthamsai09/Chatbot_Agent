@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 from fastapi import UploadFile, File
-
+from .settings import get_hf_token,set_hf_token,HF_TOKEN_POOL,TOP_K
 router = APIRouter()
 
 
@@ -49,13 +49,12 @@ class IngestRequest(BaseModel):
 
 
 class QueryRequest(BaseModel):
-    from .settings import TOP_K, get_hf_token,set_hf_token,HF_TOKEN_POOL
     query: str
     session_id: str
     hf_token: Optional[str] = None
     domain: Optional[str] = None
     document_id: Optional[str] = None
-    top_k: Optional[int] = TOP_K
+    top_k: Optional[int] = 5
 
 
 class QueryResponse(BaseModel):
