@@ -59,7 +59,7 @@ def score_faithfulness(
     question: str,
     contexts: list,
     answer: str,
-    hf_token: str
+    # hf_token: str
 ) -> float:
     """
     Faithfulness: are all claims in the answer grounded in the context?
@@ -87,7 +87,8 @@ Format:
 
     try:
         print(f"[EVAL] Faithfulness check: {question[:60]}")
-        raw = hf_chat(prompt, hf_token)
+        # raw = hf_chat(prompt, hf_token)
+        raw = hf_chat(prompt)
         print(f"[EVAL] Raw response: {raw[:150]}")
 
         parsed = extract_json(raw)
@@ -111,7 +112,7 @@ Format:
 def score_answer_relevancy(
     question: str,
     answer: str,
-    hf_token: str
+    # hf_token: str
 ) -> float:
     """
     Answer Relevancy: does the answer address the question?
@@ -134,7 +135,8 @@ Score must be a number between 0.0 and 1.0."""
 
     try:
         print(f"[EVAL] Relevancy check: {question[:60]}")
-        raw = hf_chat(prompt, hf_token)
+        # raw = hf_chat(prompt, hf_token)
+        raw = hf_chat(prompt)
         print(f"[EVAL] Raw response: {raw[:150]}")
 
         parsed = extract_json(raw)
@@ -152,7 +154,7 @@ Score must be a number between 0.0 and 1.0."""
 def build_eval_records(
     test_questions: list,
     session_id: str,
-    hf_token: str
+    # hf_token: str
 ) -> list:
     """
     For each question: retrieve contexts + get answer from agent.
@@ -171,7 +173,7 @@ def build_eval_records(
             result = run_agent(
                 query=question,
                 session_id=session_id,
-                hf_token=hf_token
+                # hf_token=hf_token
             )
             answer = result.get("answer", "")
             print(f"[EVAL] Answer preview: {answer[:100]}")
@@ -193,7 +195,7 @@ def build_eval_records(
 def run_eval(
     test_questions: list,
     session_id: str,
-    hf_token: str
+    # hf_token: str
 ) -> dict:
     """
     Main function called by api.py /api/eval endpoint.
@@ -211,7 +213,7 @@ def run_eval(
     records = build_eval_records(
         test_questions=test_questions,
         session_id=session_id,
-        hf_token=hf_token
+        # hf_token=hf_token
     )
 
     if not records:
@@ -228,12 +230,12 @@ def run_eval(
             question=record["question"],
             contexts=record["contexts"],
             answer=record["answer"],
-            hf_token=hf_token
+            # hf_token=hf_token
         ))
         r_scores.append(score_answer_relevancy(
             question=record["question"],
             answer=record["answer"],
-            hf_token=hf_token
+            # hf_token=hf_token
         ))
 
     avg_f = round(sum(f_scores) / len(f_scores), 2)

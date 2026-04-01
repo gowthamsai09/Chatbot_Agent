@@ -28,7 +28,8 @@ def generate_document_id(seed: str) -> str:
 def get_indexed_pdf_sources() -> Set[str]:
     vectorstore = get_vectorstore()
     indexed_sources = set()
-
+    if vectorstore is None:
+        return indexed_sources
     try:
         data = vectorstore.get(include=["metadatas"])
         for meta in data.get("metadatas", []):
@@ -152,7 +153,16 @@ def ingest_text_file(path: str, name: str, domain: str):
             )
         )
 
+    # vectorstore = get_vectorstore()
+    # vectorstore.add_documents(docs)
     vectorstore = get_vectorstore()
+
+    if vectorstore is None:
+        return {
+            "status": "error",
+            "message": "Vectorstore not initialized (check HF token / env)"
+        }
+
     vectorstore.add_documents(docs)
 
     return {"chunks_added": len(docs)}
@@ -192,7 +202,16 @@ def ingest_docx_file(path: str, name: str, domain: str):
             )
         )
 
+    # vectorstore = get_vectorstore()
+    # vectorstore.add_documents(docs)
+
     vectorstore = get_vectorstore()
+    if vectorstore is None:
+        return {
+            "status": "error",
+            "message": "Vectorstore not initialized (check HF token / env)"
+        }
+
     vectorstore.add_documents(docs)
 
     return {"chunks_added": len(docs)}
@@ -321,7 +340,15 @@ def ingest_url(url: str, domain: str):
         )
 
     # 7. Store in vector DB
+    # vectorstore = get_vectorstore()
+    # vectorstore.add_documents(docs)
     vectorstore = get_vectorstore()
+    if vectorstore is None:
+        return {
+            "status": "error",
+            "message": "Vectorstore not initialized (check HF token / env)"
+        }
+
     vectorstore.add_documents(docs)
 
     return {

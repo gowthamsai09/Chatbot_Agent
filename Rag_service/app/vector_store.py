@@ -18,20 +18,28 @@ _embeddings = None
 _qdrant_client = None
 
 
+
 def _get_hf_token() -> str:
-    """Pick a token: user-provided token takes precedence over pool"""
+    """
+    Pick a token safely:
+    1. Use user-provided token if available
+    2. Otherwise use token pool
+    3. If nothing available → return None (do NOT crash app)
+    """
+
     user_token = get_hf_token()
-    
-    # If user provided a token, use it
+
+    # Priority 1: user token
     if user_token:
         return user_token
-    
-    # Otherwise fall back to pool
-    if not HF_TOKEN_POOL:
-        raise RuntimeError(
-            "HF_TOKEN_POOL is empty. Set HF_TOKEN_POOL env var in Render."
-        )
-    return random.choice(HF_TOKEN_POOL)
+
+    # Priority 2: token pool
+    if HF_TOKEN_POOL:
+        return random.choice(HF_TOKEN_POOL)
+
+    # Final fallback → DO NOT crash app
+    print("HF token missing (user + ENV). Features will not work.")
+    return None
 
 
 # def get_embeddings():
@@ -50,14 +58,20 @@ def get_embeddings():
     global _embeddings
 
     if _embeddings is None:
+        token = _get_hf_token()
+
+        if not token:
+            print("Cannot initialize embeddings: No HF token")
+            return None
+
         try:
-            print("⚡ Initializing embeddings lazily...")
+            print("Initializing embeddings...")
             _embeddings = HuggingFaceEndpointEmbeddings(
-                huggingfacehub_api_token=_get_hf_token(),
+                huggingfacehub_api_token=token,
                 model=HF_EMBEDDING_MODEL
             )
         except Exception as e:
-            print("Embedding initialization failed:", str(e))
+            print("Embedding init failed:", str(e))
             return None
 
     return _embeddings
