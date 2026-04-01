@@ -138,35 +138,87 @@ def ingest_pdf(
         "chunks_added": len(new_docs)
     }
 
-def retrieve(query: str, top_k: int = 5, domain: str = None, document_id: str = None):
-    vectorstore = get_vectorstore()
-    if vectorstore is None:
+# def retrieve(query: str, top_k: int = 5, domain: str = None, document_id: str = None):
+#     vectorstore = get_vectorstore()
+#     if vectorstore is None:
+#         return []
+#     conditions = []
+
+#     if domain:
+#         conditions.append(
+#             FieldCondition(
+#                 key="metadata.domain",
+#                 match=MatchValue(value=domain)
+#             )
+#         )
+
+#     if document_id:
+#         conditions.append(
+#             FieldCondition(
+#                 key="metadata.document_id",
+#                 match=MatchValue(value=document_id)
+#             )
+#         )
+
+#     search_filter = Filter(must=conditions) if conditions else None
+
+#     return vectorstore.similarity_search(
+#         query=query,
+#         k=top_k,
+#         filter=search_filter
+#     )
+
+def retrieve(query: str,top_k: int = 5,domain: str = None,document_id: str = None):
+    """
+    Safe retrieval function:
+    - Handles missing vectorstore
+    - Handles runtime failures
+    - Never crashes the app (critical for Render)
+    """
+
+    try:
+        vectorstore = get_vectorstore()
+
+        # Critical safety check
+        if vectorstore is None:
+            print("Vectorstore not initialized. Skipping retrieval.")
+            return []
+
+        conditions = []
+
+        if domain:
+            conditions.append(
+                FieldCondition(
+                    key="metadata.domain",
+                    match=MatchValue(value=domain)
+                )
+            )
+
+        if document_id:
+            conditions.append(
+                FieldCondition(
+                    key="metadata.document_id",
+                    match=MatchValue(value=document_id)
+                )
+            )
+
+        search_filter = Filter(must=conditions) if conditions else None
+
+        results = vectorstore.similarity_search(
+            query=query,
+            k=top_k,
+            filter=search_filter
+        )
+
+        # Additional safety (in case backend returns None)
+        if not results:
+            return []
+
+        return results
+
+    except Exception as e:
+        print(f"Retrieval failed: {str(e)}")
         return []
-    conditions = []
-
-    if domain:
-        conditions.append(
-            FieldCondition(
-                key="metadata.domain",
-                match=MatchValue(value=domain)
-            )
-        )
-
-    if document_id:
-        conditions.append(
-            FieldCondition(
-                key="metadata.document_id",
-                match=MatchValue(value=document_id)
-            )
-        )
-
-    search_filter = Filter(must=conditions) if conditions else None
-
-    return vectorstore.similarity_search(
-        query=query,
-        k=top_k,
-        filter=search_filter
-    )
 
 def answer_query(
     query: str,
