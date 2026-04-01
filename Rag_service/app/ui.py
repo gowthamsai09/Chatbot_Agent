@@ -365,40 +365,54 @@ async function upload() {
     const type = document.getElementById("uploadType").value;
     const domain = document.getElementById("uploadDomain").value;
 
-    if (type === "file") {
-        const fileInput = document.getElementById("uploadFile");
-        if (!fileInput.files.length) {
-            alert("Select a file");
-            return;
+    try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+
+        let res;
+
+        if (type === "file") {
+            const fileInput = document.getElementById("uploadFile");
+
+            if (!fileInput.files.length) {
+                alert("Select a file");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+            formData.append("domain", domain);
+
+            res = await fetch("/api/upload", {
+                method: "POST",
+                body: formData,
+                signal: controller.signal
+            });
+
+        } else {
+            const url = document.getElementById("uploadUrl").value.trim();
+
+            if (!url) {
+                alert("Enter a URL");
+                return;
+            }
+
+            res = await fetch("/api/upload/url", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url, domain }),
+                signal: controller.signal
+            });
         }
 
-        const formData = new FormData();
-        formData.append("file", fileInput.files[0]);
-        formData.append("domain", domain);
-
-        const res = await fetch("/api/upload", {
-            method: "POST",
-            body: formData
-        });
+        clearTimeout(timeout);
 
         const data = await res.json();
         handleUploadSuccess(data);
 
-    } else {
-        const url = document.getElementById("uploadUrl").value.trim();
-        if (!url) {
-            alert("Enter a URL");
-            return;
-        }
-
-        const res = await fetch("/api/upload/url", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url, domain })
-        });
-
-        const data = await res.json();
-        handleUploadSuccess(data);
+    } catch (err) {
+        document.getElementById("uploadResult").innerText =
+            "Request failed: " + err.message;
     }
 }
 
