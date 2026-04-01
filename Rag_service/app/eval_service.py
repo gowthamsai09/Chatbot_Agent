@@ -1,10 +1,8 @@
+print("STEP 3: eval_service loaded")
 import re
 import json
 import traceback
 
-from .rag_engine import retrieve
-from .agent_service import run_agent
-from .llm_service import hf_chat
 
 def extract_json(text: str) -> dict:
     """
@@ -61,6 +59,7 @@ def score_faithfulness(
     answer: str,
     # hf_token: str
 ) -> float:
+    from .llm_service import hf_chat
     """
     Faithfulness: are all claims in the answer grounded in the context?
     Score = supported_claims / total_claims
@@ -114,6 +113,7 @@ def score_answer_relevancy(
     answer: str,
     # hf_token: str
 ) -> float:
+    from .llm_service import hf_chat
     """
     Answer Relevancy: does the answer address the question?
     Score: 0.0 = completely irrelevant, 1.0 = perfectly relevant
@@ -156,6 +156,8 @@ def build_eval_records(
     session_id: str,
     # hf_token: str
 ) -> list:
+    from .rag_engine import retrieve
+    from .agent_service import run_agent
     """
     For each question: retrieve contexts + get answer from agent.
     Returns list of dicts ready for scoring.

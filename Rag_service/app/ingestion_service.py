@@ -10,8 +10,6 @@ import requests
 from docx import Document as DocxDocument
 from bs4 import BeautifulSoup
 
-from .settings import CHUNK_SIZE, CHUNK_OVERLAP, PDF_DIR
-from .vector_store import get_vectorstore, get_qdrant_client
 from .settings import COLLECTION_NAME
 
 
@@ -26,6 +24,7 @@ def generate_document_id(seed: str) -> str:
 
 # Disk PDF ingestion helpers
 def get_indexed_pdf_sources() -> Set[str]:
+    from .vector_store import get_vectorstore, get_qdrant_client
     vectorstore = get_vectorstore()
     indexed_sources = set()
     if vectorstore is None:
@@ -81,6 +80,7 @@ def get_indexed_pdf_sources() -> Set[str]:
 
 # Knowledge Summary - For Qdrant
 def get_knowledge_summary():
+    from .vector_store import get_vectorstore, get_qdrant_client
     client = get_qdrant_client()
 
     documents = {}
@@ -123,6 +123,8 @@ def get_knowledge_summary():
 
 # TXT Upload Ingestion
 def ingest_text_file(path: str, name: str, domain: str):
+    from .settings import CHUNK_SIZE, CHUNK_OVERLAP, PDF_DIR
+    from .vector_store import get_vectorstore, get_qdrant_client
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         text = f.read()
 
@@ -171,7 +173,8 @@ def ingest_text_file(path: str, name: str, domain: str):
 
 # DOCX Upload Ingestion
 def ingest_docx_file(path: str, name: str, domain: str):
-
+    from .settings import CHUNK_SIZE, CHUNK_OVERLAP, PDF_DIR
+    from .vector_store import get_vectorstore, get_qdrant_client
     doc = DocxDocument(path)
     text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
 
@@ -264,6 +267,8 @@ def ingest_uploaded_document(upload_file, domain: str):
         upload_file.file.close()
 
 def ingest_url(url: str, domain: str):
+    from .settings import CHUNK_SIZE, CHUNK_OVERLAP, PDF_DIR
+    from .vector_store import get_vectorstore, get_qdrant_client
     """Ingests a single web page URL as ONE document to many chunks."""
 
     # 1. Validate URL
