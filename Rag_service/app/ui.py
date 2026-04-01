@@ -241,11 +241,11 @@ async function saveTokenAndProceed() {
 
     if (!token) {
         document.getElementById("tokenMessage").innerText =
-            "❌ Please enter a valid HuggingFace token";
+            "Please enter a valid HuggingFace token";
         return;
     }
 
-    document.getElementById("tokenMessage").innerText = "⏳ Saving token...";
+    document.getElementById("tokenMessage").innerText = "Saving token...";
 
     try {
         const res = await fetch("/api/set-token", {
@@ -264,25 +264,25 @@ async function saveTokenAndProceed() {
             localStorage.setItem("hf_token", token);
 
             document.getElementById("tokenMessage").innerText =
-                "✅ Token saved successfully!";
+                "Token saved successfully!";
 
             setTimeout(showHome, 800);
         } else {
             document.getElementById("tokenMessage").innerText =
-                "❌ " + (data.message || "Failed to save token");
+                "" + (data.message || "Failed to save token");
         }
 
     } catch (err) {
         console.error("Token save error:", err);
         document.getElementById("tokenMessage").innerText =
-            "❌ Network error: " + err.message;
+            "Network error: " + err.message;
     }
 }
 
 // Use server environment token pool
 async function useEnvToken() {
     document.getElementById("tokenMessage").innerText = 
-        "⏳ Configuring server token...";
+        "Configuring server token...";
 
     try {
         const res = await fetch("/api/set-token", {
@@ -301,18 +301,18 @@ async function useEnvToken() {
             localStorage.setItem("hf_token", "USE_ENV");
             
             document.getElementById("tokenMessage").innerText =
-                "✅ Using server token pool";
+                "Using server token pool";
 
             setTimeout(showHome, 800);
         } else {
             document.getElementById("tokenMessage").innerText =
-                "❌ " + (data.message || "Failed to configure server token");
+                "" + (data.message || "Failed to configure server token");
         }
 
     } catch (err) {
         console.error("Server token error:", err);
         document.getElementById("tokenMessage").innerText =
-            "❌ Network error: " + err.message + 
+            "Network error: " + err.message + 
             "\\n\\nMake sure HF_TOKEN_POOL is set in your environment variables.";
     }
 }
@@ -324,13 +324,13 @@ function deleteToken() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    console.log("🚀 App loaded");
+    console.log("App loaded");
     
     const token = getToken();
-    console.log("📝 Token status:", token ? (token === "USE_ENV" ? "Using ENV" : "User token set") : "No token");
+    console.log("Token status:", token ? (token === "USE_ENV" ? "Using ENV" : "User token set") : "No token");
 
     if (token && token !== "") {
-        console.log("✅ Token found, showing home");
+        console.log("Token found, showing home");
         showHome();
 
         const indicator = document.getElementById("tokenIndicator");
@@ -342,7 +342,7 @@ document.addEventListener("DOMContentLoaded", () => {
             indicator.style.color = "#28a745";
         }
     } else {
-        console.log("⚠️ No token, showing token view");
+        console.log("No token, showing token view");
         showTokenView();
     }
 });

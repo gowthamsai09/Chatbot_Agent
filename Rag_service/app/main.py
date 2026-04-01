@@ -1,6 +1,5 @@
 import os
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
-print("Current working dir:", os.getcwd())
 print("APP IMPORT STARTED")
 from fastapi import FastAPI
 import logging

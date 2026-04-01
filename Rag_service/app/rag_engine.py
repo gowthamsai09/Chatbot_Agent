@@ -2,12 +2,8 @@ import re
 from pypdf import PdfReader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from .settings import CHUNK_SIZE, CHUNK_OVERLAP
-from .vector_store import get_vectorstore
 from qdrant_client.models import Filter, FieldCondition, MatchValue
-from .ingestion_service import generate_document_id
 import hashlib
-from .llm_service import generate_answer
 
 CHAPTER_REGEX = re.compile(
     r"(chapter\s+\d+[:.\s]+.*)|(^\d+\s+.*)",
@@ -50,6 +46,8 @@ def build_documents_from_pdf(
     author: str,
     domain: str
 ):
+    from .settings import CHUNK_SIZE, CHUNK_OVERLAP
+    from .ingestion_service import generate_document_id
     chapters = extract_chapters(pdf_path)
 
     splitter = RecursiveCharacterTextSplitter(
@@ -100,6 +98,7 @@ def ingest_pdf(
     author: str,
     domain: str
     ):
+    from .vector_store import get_vectorstore
     vectorstore = get_vectorstore()
 
     documents = build_documents_from_pdf(
@@ -175,7 +174,7 @@ def retrieve(query: str,top_k: int = 5,domain: str = None,document_id: str = Non
     - Handles runtime failures
     - Never crashes the app (critical for Render)
     """
-
+    from .vector_store import get_vectorstore
     try:
         vectorstore = get_vectorstore()
 
@@ -226,6 +225,7 @@ def answer_query(
     document_id: str = None,
     top_k: int = 5,
 ):
+    from .llm_service import generate_answer
     # Step 1: retrieve relevant chunks
     docs = retrieve(
         query=query,

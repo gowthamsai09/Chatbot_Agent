@@ -1,14 +1,8 @@
+print("STEP 2: api.py loaded")
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 from fastapi import UploadFile, File
-
-from .rag_engine import ingest_pdf
-from .ingestion_service import get_knowledge_summary
-from .settings import TOP_K, get_hf_token,set_hf_token,HF_TOKEN_POOL
-from .rag_engine import answer_query
-from .ingestion_service import ingest_uploaded_document,ingest_url
-from .eval_service import run_eval
 
 router = APIRouter()
 
@@ -55,6 +49,7 @@ class IngestRequest(BaseModel):
 
 
 class QueryRequest(BaseModel):
+    from .settings import TOP_K, get_hf_token,set_hf_token,HF_TOKEN_POOL
     query: str
     session_id: str
     hf_token: Optional[str] = None
@@ -83,6 +78,7 @@ class EvalRequest(BaseModel):
 # Ingest a single PDF into the vector store.
 @router.post("/ingest")
 def ingest(request: IngestRequest):
+    from .rag_engine import ingest_pdf
     try:
         return ingest_pdf(
             pdf_path=request.pdf_path,
@@ -104,6 +100,7 @@ def ingest(request: IngestRequest):
 # Query the RAG system with optional domain-aware retrieval.
 @router.post("/query", response_model=QueryResponse)
 def query_rag(request: QueryRequest):
+    from .rag_engine import answer_query
     # hf_token = request.hf_token or get_hf_token()
     try:
         result = answer_query(
@@ -131,17 +128,15 @@ def query_rag(request: QueryRequest):
 # Returns what data the system is trained on
 @router.get("/knowledge")
 def knowledge():
+    from .ingestion_service import get_knowledge_summary
     try:
         return get_knowledge_summary()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/upload")
-def upload_document(
-    file: UploadFile = File(...),
-    domain: str = "general"
-):
-
+def upload_document(file: UploadFile = File(...),domain: str = "general"):
+    from .ingestion_service import ingest_uploaded_document
     try:
         result = ingest_uploaded_document(
             upload_file=file,
@@ -162,7 +157,7 @@ def upload_document(
 
 @router.post("/upload/url")
 def upload_url(request: UrlUploadRequest):
-
+    from .ingestion_service import ingest_url
     result = ingest_url(
         url=request.url,
         domain=request.domain
@@ -176,6 +171,8 @@ def upload_url(request: UrlUploadRequest):
 # Eval endpoint, runs Ragas on live pipeline
 @router.post("/eval")
 def eval_rag(request: EvalRequest):
+    from .settings import get_hf_token,set_hf_token,HF_TOKEN_POOL
+    from .eval_service import run_eval
     try:
         # hf_token = request.hf_token or get_hf_token()
         # Store token if user provided

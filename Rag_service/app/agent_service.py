@@ -3,9 +3,6 @@ import json
 import requests
 from langgraph.graph import StateGraph, END
 
-from .memory_service import get_memory, update_memory
-from .rag_engine import retrieve
-from .llm_service import hf_chat
 
 # Agent State
 class AgentState(TypedDict):
@@ -20,6 +17,7 @@ class AgentState(TypedDict):
 
 # Agent Nodes
 def retrieve_node(state: AgentState):
+    from .rag_engine import retrieve
     query = state["user_query"]
     results = retrieve(query=query, top_k=3)
     texts = [doc.page_content for doc in results]
@@ -27,6 +25,7 @@ def retrieve_node(state: AgentState):
 
 
 def coverage_node(state: AgentState):
+    from .llm_service import hf_chat
     context = "\n\n".join(state.get("retrieved_docs", []))
 
     prompt = f"""
@@ -66,6 +65,7 @@ def coverage_node(state: AgentState):
 
 
 def answer_node(state: AgentState):
+    from .llm_service import hf_chat
     context = "\n\n".join(state.get("retrieved_docs", []))
 
     prompt = f"""
@@ -116,6 +116,7 @@ def answer_node(state: AgentState):
 
 
 def synthesize_node(state: AgentState):
+    from .llm_service import hf_chat
     context = "\n\n".join(state.get("retrieved_docs", []))
 
     prompt = f"""
@@ -201,6 +202,7 @@ agent = graph.compile()
 
 # Public API Function
 def run_agent(query: str, session_id: str) -> dict:
+    from .memory_service import get_memory, update_memory
     memory = get_memory(session_id)
 
     initial_state: AgentState = {
