@@ -34,14 +34,31 @@ def _get_hf_token() -> str:
     return random.choice(HF_TOKEN_POOL)
 
 
+# def get_embeddings():
+#     global _embeddings
+
+#     if _embeddings is None:
+#         _embeddings = HuggingFaceEndpointEmbeddings(
+#             huggingfacehub_api_token=_get_hf_token(),
+#             model=HF_EMBEDDING_MODEL
+#         )
+
+#     return _embeddings
+
+# Load only when needed.
 def get_embeddings():
     global _embeddings
 
     if _embeddings is None:
-        _embeddings = HuggingFaceEndpointEmbeddings(
-            huggingfacehub_api_token=_get_hf_token(),
-            model=HF_EMBEDDING_MODEL
-        )
+        try:
+            print("⚡ Initializing embeddings lazily...")
+            _embeddings = HuggingFaceEndpointEmbeddings(
+                huggingfacehub_api_token=_get_hf_token(),
+                model=HF_EMBEDDING_MODEL
+            )
+        except Exception as e:
+            print("Embedding initialization failed:", str(e))
+            return None
 
     return _embeddings
 
@@ -89,10 +106,20 @@ def get_vectorstore():
         
         _ensure_payload_indexes(client)
 
+        # _vectorstore = QdrantVectorStore(
+        #     client=client,
+        #     collection_name=COLLECTION_NAME,
+        #     embedding=get_embeddings()
+        # )
+
+        embeddings = get_embeddings()
+        if embeddings is None:
+            print("Embeddings not available, skipping vectorstore init")
+            return None
+
         _vectorstore = QdrantVectorStore(
             client=client,
             collection_name=COLLECTION_NAME,
-            embedding=get_embeddings()
+            embedding=embeddings
         )
-
     return _vectorstore
