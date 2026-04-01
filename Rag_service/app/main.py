@@ -1,5 +1,6 @@
 import os
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+print("Current working dir:", os.getcwd())
 
 from fastapi import FastAPI
 import logging
