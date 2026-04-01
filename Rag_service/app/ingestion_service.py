@@ -276,18 +276,44 @@ def ingest_url(url: str, domain: str):
         return {"status": "error", "message": "Invalid URL"}
 
     # 2. Fetch page
+    print("Fetching URL:", url)
     try:
-        response = requests.get(url, timeout=10, headers={
-            "User-Agent": "Mozilla/5.0"
-        })
+        response = requests.get(
+            url,
+            timeout=(5, 8),  # connect timeout, read timeout
+            headers={"User-Agent": "Mozilla/5.0"}
+        )
+    except requests.exceptions.Timeout:
+        return {"status": "error", "message": "URL request timed out"}
     except Exception as e:
         return {"status": "error", "message": f"Request failed: {e}"}
+
+    print("Response received:", response.status_code)
 
     if response.status_code != 200:
         return {
             "status": "error",
             "message": f"Failed to fetch URL (status {response.status_code})"
         }
+
+    # BLOCK BOT DETECTION
+    if "captcha" in response.text.lower() or "cloudflare" in response.text.lower():
+        return {
+            "status": "error",
+            "message": "Website blocked scraping (try another URL)"
+        }
+    # try:
+    #     response = requests.get(url, timeout=10, headers={
+    #         "User-Agent": "Mozilla/5.0"
+    #     })
+    # except Exception as e:
+    #     return {"status": "error", "message": f"Request failed: {e}"}
+
+    # if response.status_code != 200:
+    #     return {
+    #         "status": "error",
+    #         "message": f"Failed to fetch URL (status {response.status_code})"
+    #     }
 
     # 3. Parse HTML
     soup = BeautifulSoup(response.text, "html.parser")
@@ -347,13 +373,14 @@ def ingest_url(url: str, domain: str):
     # 7. Store in vector DB
     # vectorstore = get_vectorstore()
     # vectorstore.add_documents(docs)
+    print("Initializing vectorstore...")
     vectorstore = get_vectorstore()
     if vectorstore is None:
         return {
             "status": "error",
             "message": "Vectorstore not initialized (check HF token / env)"
         }
-
+    print("Vectorstore ready")
     vectorstore.add_documents(docs)
 
     return {
