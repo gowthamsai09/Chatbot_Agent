@@ -1,7 +1,7 @@
 import os
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 print("Current working dir:", os.getcwd())
-
+print("APP IMPORT STARTED")
 from fastapi import FastAPI
 import logging
 
@@ -15,8 +15,8 @@ logging.basicConfig(level=logging.INFO)
 app = FastAPI()
 
 # Import routers AFTER app creation to avoid circular imports
-from app.api import router as api_router
-from app.ui import router as ui_router
+from .api import router as api_router
+from .ui import router as ui_router
 
 # Register routers
 app.include_router(ui_router)
