@@ -13,8 +13,11 @@ def get_hf_token():
     """Get user token if available, otherwise return None (will use pool)"""
     return _USER_HF_TOKEN
 
-# Project root: Prep/
-BASE_DIR = Path(__file__).resolve().parents[2]
+# Project root - simplified for Render
+try:
+    BASE_DIR = Path(__file__).resolve().parents[2]
+except:
+    BASE_DIR = Path.cwd()
 
 # Data paths
 DATA_DIR = BASE_DIR / "Data"

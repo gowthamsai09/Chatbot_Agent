@@ -19,3 +19,4 @@ python-multipart
 
 langchain-qdrant
 qdrant-client
+ragas
