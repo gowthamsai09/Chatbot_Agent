@@ -140,6 +140,8 @@ def ingest_pdf(
 
 def retrieve(query: str, top_k: int = 5, domain: str = None, document_id: str = None):
     vectorstore = get_vectorstore()
+    if vectorstore is None:
+        return []
     conditions = []
 
     if domain:
@@ -195,14 +197,21 @@ def answer_query(
         context=context,
     )
 
-    # Step 4: return structured response
+    # Step 4: deduplicate sources
+    seen = set()
+    sources = []
+
+    for doc in docs:
+        key = (doc.metadata.get("document_name"), doc.metadata.get("chapter"))
+        if key not in seen:
+            seen.add(key)
+            sources.append({
+                "document": key[0],
+                "chapter": key[1],
+            })
+
+    # Step 5: return
     return {
         "answer": answer,
-        "sources": [
-            {
-                "document": doc.metadata.get("document_name"),
-                "chapter": doc.metadata.get("chapter"),
-            }
-            for doc in docs
-        ]
+        "sources": sources
     }

@@ -5,11 +5,10 @@ from fastapi import UploadFile, File
 
 from .rag_engine import ingest_pdf
 from .ingestion_service import get_knowledge_summary
-from .settings import TOP_K, get_hf_token
+from .settings import TOP_K, get_hf_token,set_hf_token,HF_TOKEN_POOL
 from .rag_engine import answer_query
 from .ingestion_service import ingest_uploaded_document,ingest_url
 from .eval_service import run_eval
-import os
 
 router = APIRouter()
 
@@ -105,11 +104,11 @@ def ingest(request: IngestRequest):
 # Query the RAG system with optional domain-aware retrieval.
 @router.post("/query", response_model=QueryResponse)
 def query_rag(request: QueryRequest):
-    hf_token = request.hf_token or get_hf_token()
+    # hf_token = request.hf_token or get_hf_token()
     try:
         result = answer_query(
             query=request.query,
-            hf_token=hf_token,
+            # hf_token=hf_token,
             domain=request.domain,
             document_id=request.document_id,
             top_k=request.top_k,
@@ -178,8 +177,14 @@ def upload_url(request: UrlUploadRequest):
 @router.post("/eval")
 def eval_rag(request: EvalRequest):
     try:
-        hf_token = request.hf_token or get_hf_token()
-        if not hf_token:
+        # hf_token = request.hf_token or get_hf_token()
+        # Store token if user provided
+        # if request.hf_token:
+        set_hf_token(request.hf_token)
+
+        # Validate token exists (user OR ENV)
+        user_token = get_hf_token()
+        if not user_token and not HF_TOKEN_POOL:
             raise HTTPException(
                 status_code=400,
                 detail="No HuggingFace token provided (UI or ENV)"
@@ -188,7 +193,7 @@ def eval_rag(request: EvalRequest):
         scores = run_eval(
             test_questions=request.test_questions,
             session_id=request.session_id,
-            hf_token=hf_token
+            # hf_token=token
         )
         return scores
     except Exception as e:
