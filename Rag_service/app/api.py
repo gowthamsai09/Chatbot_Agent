@@ -6,6 +6,10 @@ from fastapi import UploadFile, File
 from .settings import get_hf_token,set_hf_token,HF_TOKEN_POOL,TOP_K
 router = APIRouter()
 
+import threading,uuid,time
+
+eval_jobs = {}
+MAX_EVAL_TIME = 120
 
 # Request / Response Models
 class TokenRequest(BaseModel):
@@ -168,32 +172,120 @@ def upload_url(request: UrlUploadRequest):
     return result
 
 # Eval endpoint, runs Ragas on live pipeline
-@router.post("/eval")
-def eval_rag(request: EvalRequest):
-    from .settings import get_hf_token,set_hf_token,HF_TOKEN_POOL
-    from .eval_service import run_eval
-    try:
-        # hf_token = request.hf_token or get_hf_token()
-        # Store token if user provided
-        # if request.hf_token:
-        set_hf_token(request.hf_token)
+@router.post("/eval/start")
+def start_eval(request: EvalRequest):
+    from .settings import get_hf_token, set_hf_token, HF_TOKEN_POOL
 
-        # Validate token exists (user OR ENV)
-        user_token = get_hf_token()
-        if not user_token and not HF_TOKEN_POOL:
-            raise HTTPException(
-                status_code=400,
-                detail="No HuggingFace token provided (UI or ENV)"
-            )
-
-        scores = run_eval(
-            test_questions=request.test_questions,
-            session_id=request.session_id,
-            # hf_token=token
+    # Constraint: max 2 questions
+    if len(request.test_questions) > 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Max 2 questions allowed for evaluation"
         )
-        return scores
+
+    # Prevent parallel jobs (FIXED POSITION)
+    running_jobs = sum(
+        1 for j in eval_jobs.values() if j["status"] == "running"
+    )
+
+    if running_jobs >= 1:
+        raise HTTPException(
+            status_code=429,
+            detail="Another evaluation is already running"
+        )
+
+    # Set token
+    set_hf_token(request.hf_token)
+
+    if not get_hf_token() and not HF_TOKEN_POOL:
+        raise HTTPException(
+            status_code=400,
+            detail="No HuggingFace token provided"
+        )
+
+    # Create job
+    job_id = str(uuid.uuid4())
+
+    eval_jobs[job_id] = {
+        "status": "running",
+        "result": None,
+        "start_time": time.time()
+    }
+
+    # Start async execution
+    threading.Thread(
+        target=_run_eval_async,
+        args=(job_id, request),
+        daemon=True
+    ).start()
+
+    return {"job_id": job_id}
+
+def _run_eval_async(job_id, request):
+    from .eval_service import run_eval
+
+    try:
+        start = time.time()
+
+        result = run_eval(
+            test_questions=request.test_questions,
+            session_id=request.session_id
+        )
+
+        # ⏱ Soft timeout check (post execution)
+        if time.time() - start > MAX_EVAL_TIME:
+            eval_jobs[job_id]["status"] = "timeout"
+            eval_jobs[job_id]["result"] = "Evaluation exceeded time limit"
+            return
+
+        eval_jobs[job_id]["status"] = "completed"
+        eval_jobs[job_id]["result"] = result
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        eval_jobs[job_id]["status"] = "failed"
+        eval_jobs[job_id]["result"] = str(e)
+
+@router.get("/eval/status/{job_id}")
+def get_eval_status(job_id: str):
+    job = eval_jobs.get(job_id)
+
+    if not job:
+        return {"status": "not_found"}
+
+    # Auto-timeout safety
+    if job["status"] == "running":
+        if time.time() - job["start_time"] > MAX_EVAL_TIME:
+            job["status"] = "timeout"
+            job["result"] = "Evaluation timed out"
+
+    return job
+
+# @router.post("/eval")
+# def eval_rag(request: EvalRequest):
+#     from .settings import get_hf_token,set_hf_token,HF_TOKEN_POOL
+#     from .eval_service import run_eval
+#     try:
+#         # hf_token = request.hf_token or get_hf_token()
+#         # Store token if user provided
+#         # if request.hf_token:
+#         set_hf_token(request.hf_token)
+
+#         # Validate token exists (user OR ENV)
+#         user_token = get_hf_token()
+#         if not user_token and not HF_TOKEN_POOL:
+#             raise HTTPException(
+#                 status_code=400,
+#                 detail="No HuggingFace token provided (UI or ENV)"
+#             )
+
+#         scores = run_eval(
+#             test_questions=request.test_questions,
+#             session_id=request.session_id,
+#             # hf_token=token
+#         )
+#         return scores
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/health")
 def health():
