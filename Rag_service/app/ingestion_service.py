@@ -123,8 +123,8 @@ def get_knowledge_summary():
 
 # TXT Upload Ingestion
 def ingest_text_file(path: str, name: str, domain: str):
-    from .settings import CHUNK_SIZE, CHUNK_OVERLAP, PDF_DIR
-    from .vector_store import get_vectorstore, get_qdrant_client
+    from .settings import CHUNK_SIZE, CHUNK_OVERLAP
+    from .vector_store import get_vectorstore
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         text = f.read()
 
@@ -173,8 +173,8 @@ def ingest_text_file(path: str, name: str, domain: str):
 
 # DOCX Upload Ingestion
 def ingest_docx_file(path: str, name: str, domain: str):
-    from .settings import CHUNK_SIZE, CHUNK_OVERLAP, PDF_DIR
-    from .vector_store import get_vectorstore, get_qdrant_client
+    from .settings import CHUNK_SIZE, CHUNK_OVERLAP
+    from .vector_store import get_vectorstore
     doc = DocxDocument(path)
     text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
 
@@ -277,43 +277,43 @@ def ingest_url(url: str, domain: str):
 
     # 2. Fetch page
     print("Fetching URL:", url)
-    try:
-        response = requests.get(
-            url,
-            timeout=(5, 8),  # connect timeout, read timeout
-            headers={"User-Agent": "Mozilla/5.0"}
-        )
-    except requests.exceptions.Timeout:
-        return {"status": "error", "message": "URL request timed out"}
-    except Exception as e:
-        return {"status": "error", "message": f"Request failed: {e}"}
-
-    print("Response received:", response.status_code)
-
-    if response.status_code != 200:
-        return {
-            "status": "error",
-            "message": f"Failed to fetch URL (status {response.status_code})"
-        }
-
-    # BLOCK BOT DETECTION
-    if "captcha" in response.text.lower() or "cloudflare" in response.text.lower():
-        return {
-            "status": "error",
-            "message": "Website blocked scraping (try another URL)"
-        }
     # try:
-    #     response = requests.get(url, timeout=10, headers={
-    #         "User-Agent": "Mozilla/5.0"
-    #     })
+    #     response = requests.get(
+    #         url,
+    #         timeout=(5, 8),  # connect timeout, read timeout
+    #         headers={"User-Agent": "Mozilla/5.0"}
+    #     )
+    # except requests.exceptions.Timeout:
+    #     return {"status": "error", "message": "URL request timed out"}
     # except Exception as e:
     #     return {"status": "error", "message": f"Request failed: {e}"}
+
+    # print("Response received:", response.status_code)
 
     # if response.status_code != 200:
     #     return {
     #         "status": "error",
     #         "message": f"Failed to fetch URL (status {response.status_code})"
     #     }
+
+    # # BLOCK BOT DETECTION
+    # if "captcha" in response.text.lower() or "cloudflare" in response.text.lower():
+    #     return {
+    #         "status": "error",
+    #         "message": "Website blocked scraping (try another URL)"
+    #     }
+    try:
+        response = requests.get(url, timeout=10, headers={
+            "User-Agent": "Mozilla/5.0"
+        })
+    except Exception as e:
+        return {"status": "error", "message": f"Request failed: {e}"}
+
+    if response.status_code != 200:
+        return {
+            "status": "error",
+            "message": f"Failed to fetch URL (status {response.status_code})"
+        }
 
     # 3. Parse HTML
     soup = BeautifulSoup(response.text, "html.parser")

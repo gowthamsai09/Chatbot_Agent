@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Personalized Knowledge Assistant</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+
+<!--  TOKEN VIEW  -->
+<div id="tokenView" class="view">
+    <div class="card">
+        <h1>Knowledge Assistant</h1>
+        <p>Connect your HuggingFace token to get started, or use the server token pool.</p>
+
+        <div class="field">
+            <label for="hfTokenInput">HuggingFace Token</label>
+            <input type="password" id="hfTokenInput" placeholder="hf_..." autocomplete="off" />
+        </div>
+
+        <button class="btn-primary" id="saveTokenBtn" onclick="handleSaveToken()">
+            Save Token &amp; Continue
+        </button>
+
+        <div class="or-sep">OR</div>
+
+        <button class="btn-secondary" id="useEnvBtn" onclick="handleUseEnvToken()">
+            Use Server Token Pool
+        </button>
+
+        <div id="tokenMessage" class="status-msg hidden"></div>
+    </div>
+</div>
+
+<!--  HOME VIEW  -->
+<div id="homeView" class="view">
+    <div class="card">
+        <h1>Knowledge Assistant</h1>
+        <div id="tokenIndicator" class="token-badge hidden"></div>
+
+        <p>Choose an action below to get started.</p>
+
+        <div class="nav-row">
+            <button class="btn-primary" onclick="showUploadView()">Upload File / URL</button>
+            <button class="btn-primary" onclick="showAskView()">Ask Questions</button>
+            <button class="btn-primary" onclick="showEvalView()">RAG Evaluation</button>
+            <button class="btn-danger"  onclick="handleDeleteToken()">Delete Token</button>
+        </div>
+    </div>
+</div>
+
+<!--  UPLOAD VIEW  -->
+<div id="uploadView" class="view">
+    <div class="card">
+        <h2>Upload Document</h2>
+
+        <div class="field">
+            <label for="uploadType">Source Type</label>
+            <select id="uploadType" onchange="onUploadTypeChange()">
+                <option value="file">Upload File (PDF / DOCX / TXT)</option>
+                <option value="url">Ingest Web URL</option>
+            </select>
+        </div>
+
+        <div class="field" id="fileInputField">
+            <label for="uploadFile">Select File</label>
+            <input type="file" id="uploadFile" accept=".pdf,.docx,.txt" />
+        </div>
+
+        <div class="field hidden" id="urlInputField">
+            <label for="uploadUrl">Web Page URL</label>
+            <input type="text" id="uploadUrl" placeholder="https://example.com/article" />
+        </div>
+
+        <div class="field">
+            <label for="uploadDomain">Domain / Topic</label>
+            <select id="uploadDomain">
+                <option value="general">General</option>
+                <option value="foundations">Foundations</option>
+                <option value="rag">RAG</option>
+                <option value="agents">Agents</option>
+            </select>
+        </div>
+
+        <button class="btn-primary" id="uploadBtn" onclick="handleUpload()">
+            Upload &amp; Index
+        </button>
+
+        <div id="uploadStatus" class="status-msg hidden"></div>
+        <div id="uploadResult" class="result-box hidden"></div>
+
+        <!-- Post-upload: ask about this specific document -->
+        <div id="postUploadAsk" class="hidden">
+            <hr class="divider" />
+            <h3>Ask about this document</h3>
+            <div class="field">
+                <textarea id="docQuery" rows="3" placeholder="Ask something specific to this document..."></textarea>
+            </div>
+            <button class="btn-secondary" id="docAskBtn" onclick="handleAskOnDoc()">Ask</button>
+            <div id="docStatus" class="status-msg hidden"></div>
+            <div id="docAnswer" class="result-box hidden"></div>
+        </div>
+
+        <div class="back-row">
+            <button class="btn-ghost" onclick="goHome()">← Back to Home</button>
+        </div>
+    </div>
+</div>
+
+<!--  ASK VIEW  -->
+<div id="askView" class="view">
+    <div class="card">
+        <h2>Ask Questions</h2>
+
+        <div class="field">
+            <label for="modeSelector">Query Mode</label>
+            <select id="modeSelector" onchange="onModeChange()">
+                <option value="global">Global Knowledge (all indexed docs)</option>
+                <option value="document">Ask about a Specific Document</option>
+            </select>
+        </div>
+
+        <!-- FIX: scrollable document list with fixed height -->
+        <div id="documentSelector" class="field hidden">
+            <label for="modeSelector">Select Document</label>
+            <div id="docLoadingMsg" class="status-msg info hidden">
+                <span class="spinner"></span> Loading documents…
+            </div>
+            <div class="custom-dropdown" id="docDropdown">
+                <div class="dropdown-selected" onclick="toggleDropdown()">
+                    Select document
+                </div>
+                <div class="dropdown-options hidden" id="dropdownOptions"></div>
+            </div>
+        </div>
+
+        <div class="field">
+            <label for="queryText">Your Question</label>
+            <textarea id="queryText" rows="4" placeholder="Ask anything from your indexed knowledge base…"></textarea>
+        </div>
+
+        <button class="btn-primary" id="askBtn" onclick="handleAsk()">
+            Ask
+        </button>
+
+        <div id="askStatus" class="status-msg hidden"></div>
+
+        <div id="answerBlock" class="hidden">
+            <h4>Answer</h4>
+            <div id="answer" class="result-box"></div>
+
+            <div id="introspectionBlock">
+                <h4>Agent Introspection</h4>
+                <div id="introspection" class="introspection-box"></div>
+
+                <h4>Sources</h4>
+                <div id="sources" class="result-box"></div>
+            </div>
+        </div>
+
+        <div class="back-row">
+            <button class="btn-ghost" onclick="goHome()">← Back to Home</button>
+        </div>
+    </div>
+</div>
+
+<!--  EVAL VIEW  -->
+<div id="evalView" class="view">
+    <div class="card">
+        <h2>RAG Evaluation</h2>
+        <p>Enter up to <strong>2 test questions</strong> (one per line). The system runs your live pipeline on each question and returns faithfulness + answer relevancy scores.</p>
+
+        <div class="field">
+            <label for="evalQuestions">Test Questions</label>
+            <textarea id="evalQuestions" rows="5"
+                placeholder="What is retrieval-augmented generation?&#10;How does LangGraph handle state?">
+            </textarea>
+        </div>
+
+        <button class="btn-primary" id="evalBtn" onclick="handleRunEval()">
+            Run Evaluation
+        </button>
+
+        <div id="evalStatus" class="status-msg hidden"></div>
+
+        <div id="evalResultBlock" class="hidden">
+            <hr class="divider" />
+            <h3>Evaluation Results</h3>
+            <div class="eval-metric">
+                <span class="eval-metric-label">Faithfulness</span>
+                <span class="eval-metric-value" id="evalFaithfulness">—</span>
+            </div>
+            <div class="eval-metric">
+                <span class="eval-metric-label">Answer Relevancy</span>
+                <span class="eval-metric-value" id="evalRelevancy">—</span>
+            </div>
+            <div class="eval-metric">
+                <span class="eval-metric-label">Questions Evaluated</span>
+                <span class="eval-metric-value" id="evalNumQ">—</span>
+            </div>
+            <div id="evalStatusBadge"></div>
+        </div>
+
+        <div class="back-row">
+            <button class="btn-ghost" onclick="goHome()">← Back to Home</button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/api.js"></script>
+<script>
+
+"use strict";
+
+/* ───── helpers ───── */
+
+function showMsg(id, text, type = 'info') {
+    const el = document.getElementById(id);
+    el.innerHTML = text.trim();
+    el.className = `status-msg ${type}`;
+    el.classList.remove('hidden');
+}
+
+function hideMsg(id) {
+    document.getElementById(id).classList.add('hidden');
+}
+
+function setLoading(btnId, loading, defaultText) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.disabled = loading;
+    btn.innerHTML = loading
+        ? `<span class="spinner"></span> Working…`
+        : defaultText;
+}
+
+/* ───── view switcher ───── */
+
+const ALL_VIEWS = ['tokenView', 'homeView', 'uploadView', 'askView', 'evalView'];
+
+function showView(id) {
+    ALL_VIEWS.forEach(v => {
+        const el = document.getElementById(v);
+        el.classList.remove('active');
+    });
+    document.getElementById(id).classList.add('active');
+}
+
+function goHome()         { showView('homeView'); }
+function showUploadView() { resetUploadState(); showView('uploadView'); onUploadTypeChange(); }
+function showEvalView()   { showView('evalView'); }
+
+function showAskView() {
+    showView('askView');
+    onModeChange();
+}
+
+function showTokenView()  { showView('tokenView'); }
+
+/* ───── boot ───── */
+
+document.addEventListener('DOMContentLoaded', () => {
+    const token = getStoredToken();
+
+    if (token) {
+        showView('homeView');
+        renderTokenIndicator(token);
+    } else {
+        showView('tokenView');
+    }
+});
+
+function renderTokenIndicator(token) {
+    const el = document.getElementById('tokenIndicator');
+    if (!el) return;
+    el.textContent = token === 'USE_ENV'
+        ? 'Using Server Token Pool'
+        : 'User Token Connected';
+    el.classList.remove('hidden');
+}
+
+/* ───── token actions ───── */
+
+async function handleSaveToken() {
+    const token = document.getElementById('hfTokenInput').value.trim();
+
+    if (!token) {
+        showMsg('tokenMessage', 'Please enter a valid HuggingFace token.', 'error');
+        return;
+    }
+
+    setLoading('saveTokenBtn', true, 'Save Token &amp; Continue');
+    hideMsg('tokenMessage');
+
+    try {
+        const data = await apiSetToken(token);
+
+        if (data.status === 'success') {
+            localStorage.setItem('hf_token', token);
+            showMsg('tokenMessage', 'Token saved! Redirecting…', 'success');
+            setTimeout(() => {
+                renderTokenIndicator(token);
+                showView('homeView');
+            }, 700);
+        } else {
+            showMsg('tokenMessage', data.message || 'Failed to save token.', 'error');
+        }
+    } catch (err) {
+        showMsg('tokenMessage', 'Network error: ' + err.message, 'error');
+    } finally {
+        setLoading('saveTokenBtn', false, 'Save Token &amp; Continue');
+    }
+}
+
+async function handleUseEnvToken() {
+    setLoading('useEnvBtn', true, 'Use Server Token Pool');
+    hideMsg('tokenMessage');
+    showMsg('tokenMessage', 'Configuring server token…', 'info');
+
+    try {
+        const data = await apiSetToken('');   // empty = use ENV pool
+
+        if (data.status === 'success') {
+            localStorage.setItem('hf_token', 'USE_ENV');
+            showMsg('tokenMessage', 'Using server token pool. Redirecting…', 'success');
+            setTimeout(() => {
+                renderTokenIndicator('USE_ENV');
+                showView('homeView');
+            }, 700);
+        } else {
+            showMsg('tokenMessage', data.message || 'Failed to configure.', 'error');
+        }
+    } catch (err) {
+        showMsg('tokenMessage', 'Network error: ' + err.message, 'error');
+    } finally {
+        setLoading('useEnvBtn', false, 'Use Server Token Pool');
+    }
+}
+
+// FIX: Clear input field and hidden message when returning to token view
+function handleDeleteToken() {
+    if (!confirm('Delete stored token and return to setup?')) return;
+    localStorage.removeItem('hf_token');
+
+    // Reset token page to clean state
+    document.getElementById('hfTokenInput').value = '';
+    const msgEl = document.getElementById('tokenMessage');
+    msgEl.textContent = '';
+    msgEl.className = 'status-msg hidden';
+
+    // Reset buttons in case they were disabled
+    const saveBtn = document.getElementById('saveTokenBtn');
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = 'Save Token &amp; Continue';
+    const envBtn = document.getElementById('useEnvBtn');
+    envBtn.disabled = false;
+    envBtn.innerHTML = 'Use Server Token Pool';
+
+    showView('tokenView');
+}
+
+/* ───── upload ───── */
+
+let uploadedDocumentId = null;
+
+function resetUploadState() {
+    uploadedDocumentId = null;
+    ['uploadResult', 'uploadStatus', 'docStatus', 'docAnswer'].forEach(id => {
+        const el = document.getElementById(id);
+        el.textContent = '';
+        el.classList.add('hidden');
+    });
+    document.getElementById('postUploadAsk').classList.add('hidden');
+    document.getElementById('uploadFile').value = '';
+    document.getElementById('uploadUrl').value = '';
+    document.getElementById('docQuery').value = '';
+}
+
+function onUploadTypeChange() {
+    const type = document.getElementById('uploadType').value;
+    document.getElementById('fileInputField').classList.toggle('hidden', type !== 'file');
+    document.getElementById('urlInputField').classList.toggle('hidden', type !== 'url');
+}
+
+async function handleUpload() {
+    const type   = document.getElementById('uploadType').value;
+    const domain = document.getElementById('uploadDomain').value;
+
+    hideMsg('uploadStatus');
+    document.getElementById('uploadResult').classList.add('hidden');
+    document.getElementById('postUploadAsk').classList.add('hidden');
+
+    setLoading('uploadBtn', true, 'Upload &amp; Index');
+
+    try {
+        let data;
+
+        if (type === 'file') {
+            const fileInput = document.getElementById('uploadFile');
+            if (!fileInput.files.length) {
+                showMsg('uploadStatus', 'Please select a file first.', 'error');
+                return;
+            }
+            showMsg('uploadStatus', 'Uploading and indexing…', 'info');
+            data = await apiUploadFile(fileInput.files[0], domain);
+
+        } else {
+            const url = document.getElementById('uploadUrl').value.trim();
+            if (!url) {
+                showMsg('uploadStatus', 'Please enter a URL.', 'error');
+                return;
+            }
+            showMsg('uploadStatus', 'Fetching and indexing URL…', 'info');
+            data = await apiUploadUrl(url, domain);
+        }
+
+        hideMsg('uploadStatus');
+
+        const resultEl = document.getElementById('uploadResult');
+        resultEl.textContent = JSON.stringify(data, null, 2);
+        resultEl.classList.remove('hidden');
+
+        if (data.document_id) {
+            uploadedDocumentId = data.document_id;
+            // Invalidate the knowledge cache so new doc appears in dropdown
+            _knowledgeCache = null;
+            document.getElementById('postUploadAsk').classList.remove('hidden');
+        }
+
+    } catch (err) {
+        showMsg('uploadStatus',
+            err.name === 'AbortError'
+                ? 'Request timed out. Try again.'
+                : 'Upload failed: ' + err.message,
+            'error'
+        );
+    } finally {
+        setLoading('uploadBtn', false, '⬆ Upload &amp; Index');
+    }
+}
+
+async function handleAskOnDoc() {
+    const query = document.getElementById('docQuery').value.trim();
+    if (!query) { showMsg('docStatus', 'Please enter a question.', 'error'); return; }
+
+    hideMsg('docStatus');
+    document.getElementById('docAnswer').classList.add('hidden');
+    setLoading('docAskBtn', true, 'Ask');
+    showMsg('docStatus', 'Thinking…', 'info');
+
+    try {
+        const data = await apiQuery(query, uploadedDocumentId);
+
+        hideMsg('docStatus');
+        const el = document.getElementById('docAnswer');
+        el.textContent = data.answer || '(no answer returned)';
+        el.classList.remove('hidden');
+
+    } catch (err) {
+        showMsg('docStatus', 'Query failed: ' + err.message, 'error');
+    } finally {
+        setLoading('docAskBtn', false, 'Ask');
+    }
+}
+
+/* ───── ask ───── */
+
+// FIX: In-memory cache for knowledge — avoids repeated Qdrant round-trips
+let _knowledgeCache = null;
+let selectedDocumentId = null;
+
+function toggleDropdown() {
+    const options = document.getElementById('dropdownOptions');
+
+    // Prevent opening if still loading
+    // if (options.dataset.loading === "true") return;
+
+    options.classList.toggle('hidden');
+}
+
+async function loadDocuments() {
+    const optionsDiv = document.getElementById('dropdownOptions');
+    const selectedDiv = document.querySelector('.dropdown-selected');
+    const loadingMsg = document.getElementById('docLoadingMsg');
+
+    // HOW SPINNER ABOVE
+    loadingMsg.classList.remove('hidden');
+    selectedDiv.textContent = "Loading documents...";
+
+    try {
+        if (!_knowledgeCache) {
+            _knowledgeCache = await apiGetKnowledge();
+        }
+
+        const docs = _knowledgeCache.documents || {};
+
+        optionsDiv.innerHTML = '';
+
+        if (!Object.keys(docs).length) {
+            optionsDiv.innerHTML = '<div class="dropdown-option">No documents</div>';
+            return;
+        }
+
+        for (const [id, name] of Object.entries(docs)) {
+            const div = document.createElement('div');
+            div.className = 'dropdown-option';
+            div.textContent = name;
+
+            div.onclick = () => {
+                selectedDocumentId = id;
+                selectedDiv.textContent = name;
+                optionsDiv.classList.add('hidden');
+            };
+
+            optionsDiv.appendChild(div);
+        }
+
+        selectedDiv.textContent = "Select document";
+
+    } catch (err) {
+        optionsDiv.innerHTML = '<div class="dropdown-option">Failed to load</div>';
+    } finally {
+        // HIDE SPINNER AFTER LOAD
+        loadingMsg.classList.add('hidden');
+    }
+}
+
+function onModeChange() {
+    const mode = document.getElementById('modeSelector').value;
+    const isDocument = mode === 'document';
+
+    document.getElementById('documentSelector').classList.toggle('hidden', !isDocument);
+    document.getElementById('introspectionBlock').classList.toggle('hidden', isDocument);
+
+    // Hide previous answers when switching modes
+    document.getElementById('answerBlock').classList.add('hidden');
+    hideMsg('askStatus');
+
+    if (isDocument) loadDocuments();
+}
+
+async function handleAsk() {
+    const query = document.getElementById('queryText').value.trim();
+    if (!query) { showMsg('askStatus', 'Please enter a question.', 'error'); return; }
+
+    const mode = document.getElementById('modeSelector').value;
+    // const documentId = mode === 'document'
+    //     ? document.getElementById('documentList').value
+    //     : null;
+    const documentId = mode === 'document'
+        ? selectedDocumentId
+        : null;
+
+    hideMsg('askStatus');
+    document.getElementById('answerBlock').classList.add('hidden');
+    setLoading('askBtn', true, 'Ask');
+    showMsg('askStatus', 'Thinking…', 'info');
+
+    try {
+        const data = await apiQuery(query, documentId);
+
+        hideMsg('askStatus');
+
+        document.getElementById('answer').textContent = data.answer || '(no answer)';
+        document.getElementById('answerBlock').classList.remove('hidden');
+
+        if (mode === 'global') {
+            document.getElementById('introspection').innerHTML =
+                `<strong>Coverage:</strong> ${data.coverage || 'N/A'}<br>` +
+                `<strong>Path taken:</strong> ${data.path_taken || 'N/A'}`;
+
+            document.getElementById('sources').textContent =
+                (data.sources || []).join('\n') || 'No sources returned.';
+        }
+
+    } catch (err) {
+        showMsg('askStatus', 'Query failed: ' + err.message, 'error');
+    } finally {
+        setLoading('askBtn', false, 'Ask');
+    }
+}
+
+/* ───── eval ───── */
+
+async function handleRunEval() {
+    const raw = document.getElementById('evalQuestions').value;
+    const questions = raw.split('\n').map(q => q.trim()).filter(Boolean);
+
+    if (!questions.length) {
+        showMsg('evalStatus', 'Enter at least one question.', 'error');
+        return;
+    }
+    if (questions.length > 2) {
+        showMsg('evalStatus', 'Maximum 2 questions allowed.', 'error');
+        return;
+    }
+
+    hideMsg('evalStatus');
+    document.getElementById('evalResultBlock').classList.add('hidden');
+    setLoading('evalBtn', true, 'Run Evaluation');
+    showMsg('evalStatus', 'Starting evaluation job…', 'info');
+
+    try {
+        const { job_id } = await apiEvalStart(questions);
+
+        showMsg('evalStatus', 'Evaluation running… (this may take up to 2 minutes)', 'info');
+
+        const finalData = await pollEvalUntilDone(job_id, (tick) => {
+            if (tick.status === 'running') {
+                showMsg('evalStatus', 'Evaluation running… (this may take up to 2 minutes)', 'info');
+            }
+        });
+
+        if (finalData.status === 'completed' && finalData.result) {
+            hideMsg('evalStatus');
+            renderEvalResults(finalData.result);
+        } else if (finalData.status === 'timeout') {
+            showMsg('evalStatus', 'Evaluation timed out on the server. Try fewer questions.', 'error');
+        } else {
+            showMsg('evalStatus', 'Evaluation failed: ' + (finalData.result || 'unknown error'), 'error');
+        }
+
+    } catch (err) {
+        showMsg('evalStatus', 'Error: ' + err.message, 'error');
+    } finally {
+        setLoading('evalBtn', false, 'Run Evaluation');
+    }
+}
+
+function renderEvalResults(r) {
+    document.getElementById('evalFaithfulness').textContent = String(r.faithfulness ?? '—').trim();
+    document.getElementById('evalRelevancy').textContent    = String(r.answer_relevancy ?? '—').trim();
+    document.getElementById('evalNumQ').textContent         = String(r.num_questions ?? '—').trim();
+
+    const badge = document.getElementById('evalStatusBadge');
+    const isPass = r.status === 'pass';
+    badge.innerHTML = `<span class="eval-status ${isPass ? 'pass' : 'review'}">
+        ${isPass ? 'PASS' : 'NEEDS REVIEW'}
+    </span>`;
+
+    document.getElementById('evalResultBlock').classList.remove('hidden');
+}
+
+document.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('docDropdown');
+    if (!dropdown.contains(e.target)) {
+        document.getElementById('dropdownOptions').classList.add('hidden');
+    }
+});
+
+</script>
+
+</body>
+</html>
