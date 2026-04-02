@@ -519,33 +519,29 @@ async function ask() {
 }
 
 /* ---------------- EVAL ---------------- */
-
 async function runEval() {
     const raw = document.getElementById("evalQuestions").value;
 
-    const questions = raw
-        .split("\\n")
-        .map(q => q.trim())
-        .filter(q => q.length > 0);
+    const questions = raw.split("\n").map(q => q.trim()).filter(q => q);
 
     if (questions.length === 0) {
         alert("Enter at least one question.");
         return;
     }
 
-    document.getElementById("evalResult").innerText =
-        "Running evaluation... this may take 1-2 minutes.";
-
-    let token = getToken();
-
-    // If user selected ENV mode, send empty string
-    if (token === "USE_ENV") {
-        token = "";
+    if (questions.length > 2) {
+        alert("Max 2 questions allowed.");
+        return;
     }
 
-    const res = await fetch("/api/eval", {
+    document.getElementById("evalResult").innerText = "Starting evaluation...";
+
+    let token = getToken();
+    if (token === "USE_ENV") token = "";
+
+    const startRes = await fetch("/api/eval/start", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
             test_questions: questions,
             session_id: sessionId,
@@ -553,16 +549,35 @@ async function runEval() {
         })
     });
 
-    const data = await res.json();
-    const output =(
-    "Ragas Evaluation Results\\n" +
-    "========================\\n" +
-    "Questions evaluated : " + data.num_questions + "\\n" +
-    "Faithfulness        : " + data.faithfulness + " (target > 0.85)\\n" +
-    "Answer Relevancy    : " + data.answer_relevancy + " (target > 0.80)\\n" +
-    "Overall status      : " + data.status).trim();
+    const { job_id } = await startRes.json();
 
-    document.getElementById("evalResult").innerText = output;
+    const interval = setInterval(async () => {
+        const res = await fetch(`/api/eval/status/${job_id}`);
+        const data = await res.json();
+
+        if (data.status === "running") {
+            document.getElementById("evalResult").innerText =
+                "Evaluation running...";
+        }
+
+        if (data.status === "completed") {
+            clearInterval(interval);
+
+            const r = data.result;
+
+            document.getElementById("evalResult").innerText =
+                "Faithfulness: " + r.faithfulness +
+                "\nRelevancy: " + r.answer_relevancy +
+                "\nStatus: " + r.status;
+        }
+
+        if (data.status === "failed" || data.status === "timeout") {
+            clearInterval(interval);
+            document.getElementById("evalResult").innerText =
+                "Error: " + data.result;
+        }
+
+    }, 3000);
 }
 
 /* ---------------- UPLOAD TYPE TOGGLE ---------------- */
