@@ -2,23 +2,18 @@ print("STEP 4: llm_service loaded")
 import random
 from huggingface_hub import InferenceClient
 
-MODEL_ID = "deepseek-ai/DeepSeek-V3.2"
+MODEL_ID = "deepseek-ai/DeepSeek-V3-0324"
 
 
 def _pick_hf_token() -> str:
     from .settings import HF_TOKEN_POOL, get_hf_token
     """Pick a token: user-provided token takes precedence over pool"""
     user_token = get_hf_token()
-    
-    # If user provided a token, use it
     if user_token:
         return user_token
-    
-    # Otherwise fall back to pool
     if not HF_TOKEN_POOL:
-        if not HF_TOKEN_POOL:
-            print("No HF token available")
-            return None
+        print("No HF token available")
+        return None
     return random.choice(HF_TOKEN_POOL)
 
 

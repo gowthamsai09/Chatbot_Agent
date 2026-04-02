@@ -66,6 +66,7 @@ def coverage_node(state: AgentState):
 
 def answer_node(state: AgentState):
     from .llm_service import hf_chat
+    from .eval_service import extract_json
     context = "\n\n".join(state.get("retrieved_docs", []))
 
     prompt = f"""
@@ -97,6 +98,7 @@ def answer_node(state: AgentState):
     response = hf_chat(prompt)
 
     try:
+        # parsed = extract_json(response)
         parsed = json.loads(response)
         answer = parsed.get("answer")
     except Exception:
@@ -117,6 +119,7 @@ def answer_node(state: AgentState):
 
 def synthesize_node(state: AgentState):
     from .llm_service import hf_chat
+    from .eval_service import extract_json
     context = "\n\n".join(state.get("retrieved_docs", []))
 
     prompt = f"""
@@ -150,6 +153,7 @@ def synthesize_node(state: AgentState):
 
     try:
         parsed = json.loads(response)
+        # parsed = extract_json(response)
         answer = parsed.get("answer")
     except Exception:
         answer = None
